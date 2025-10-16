@@ -261,7 +261,7 @@ def get_min_distance(matrix):
     This is likely just numpy min (which works on a matrix) and I can't remember how to figure the index to min.....
     
     '''
-    pass
+    return np.min(matrix), np.unravel_index(np.argmin(matrix)), shape=matrix.shape)
 ```
 
 ```{python}
