@@ -19,44 +19,39 @@ reticulate::conda_install(envname = "r-reticulate",
 # reticulate::use_condaenv(condaenv = "ete3")
 ```
 
----
+------------------------------------------------------------------------
 
 ## Learning Objectives
 
-1. Implement a distance-based phylogeny neighbor joining algorithm
-1. Understanding of hierarchical clustering
-1. Manipulation of arrays and lists in Python
+1.  Implement a distance-based phylogeny neighbor joining algorithm
+2.  Understanding of hierarchical clustering
+3.  Manipulation of arrays and lists in Python
 
----
+------------------------------------------------------------------------
 
 ## Imports
+
 You will need to install a package called `ete3` for this project. You can do this by the command `conda install ete3`.
 
 ```{python}
 from typing import List, Tuple, Dict
 import numpy as np
 from my_read_fasta import read_fasta
-
-import ete3
+from smith_waterman import smith_waterman_max_score
+#import ete3
 ```
 
----
+------------------------------------------------------------------------
 
 ## Background
 
 Today we will implement a distance-based phylogenetic tree construction method using the Neighbor-Joining (NJ) algorithm and Smith-Waterman local alignment scores. Unlike UPGMA (Unweighted Pair Group Method using Arithmetic averages), NJ produces unrooted trees and does not assume a constant evolutionary rate across lineages, making it more biologically realistic for analyzing sequence relationships.
 
-We will use HIV-1 reverse transcriptase sequences to construct our phylogenetic tree. The Smith-Waterman algorithm will be used to generate pairwise local alignment scores, which will then be converted into distances for tree construction. This approach is particularly suitable for HIV sequence analysis as it:
-1. Handles sequence variations effectively through local alignment
-2. Accounts for potential rate heterogeneity across different viral strains
-3. Does not assume a molecular clock
+We will use HIV-1 reverse transcriptase sequences to construct our phylogenetic tree. The Smith-Waterman algorithm will be used to generate pairwise local alignment scores, which will then be converted into distances for tree construction. This approach is particularly suitable for HIV sequence analysis as it: 1. Handles sequence variations effectively through local alignment 2. Accounts for potential rate heterogeneity across different viral strains 3. Does not assume a molecular clock
 
 The ultimate output will be an unrooted phylogenetic tree representing the evolutionary relationships between the HIV-1 sequences, visualized using the ete3 library. This method provides insights into viral diversity and evolutionary patterns while avoiding the assumptions of simpler hierarchical clustering approaches.
 
-The key innovations of this implementation are:
-- Use of Smith-Waterman for sensitive local alignment scoring
-- Implementation of Neighbor-Joining for unrooted tree construction
-- More biologically realistic evolutionary model
+The key innovations of this implementation are: - Use of Smith-Waterman for sensitive local alignment scoring - Implementation of Neighbor-Joining for unrooted tree construction - More biologically realistic evolutionary model
 
 ## Neighbor-Joining Algorithm
 
@@ -73,29 +68,18 @@ While $n > 2$:
 1. Calculate Q-matrix (centrality of the calculated distances) where:
    $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
 
-2. Find pair $(i,j)$ with minimum $Q(i,j)$
+2.  Find pair $(i,j)$ with minimum $Q(i,j)$
 
-3. Calculate branch lengths:
-   $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$
-   $d_j = d(i,j) - d_i$
-   where $r_i = \sum_{k=1}^n d(i,k)$
+3.  Calculate branch lengths: $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$
 
 4. Create new node $k$ INTERNAL NODE (ancestor)
    - Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
 
-5. Update distances to remaining nodes $x$:
-   $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
+    -   Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
 
-6. Remove nodes $i$ and $j$ 
+5.  Update distances to remaining nodes $x$: $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
 
-7. Add node $k$ to active nodes
-
-8. $n = n - 1$
-
-**Termination**:
-When $n = 2$ with remaining nodes $i$ and $j$:
-- Add final branch between $i$ and $j$ with length $d(i,j)$
-- Return unrooted tree $T$
+6.  Remove nodes $i$ and $j$
 
 <End Marcus Stuff>
 ---
@@ -165,8 +149,7 @@ eqn2 = Branch_length =  $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$
    where $r_i = \sum_{k=1}^n d(i,k)$
 eqn3 = $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
 
-**Initialization**:
-- Let n be the number of sequences that were used to set up D.
+**Input** \## While working with Nikaela (project 4), I implemented a read_fasta that was a hacked up ##version of Marcus's read fasta from project 3. \## \## I will put that file in our project06 directory as my_read_fasta.py \## feel free to mess with it, make it more error tolerant, etc, as I haven't checked ##. for errors on openning or ??? ##.I am adding my_read_fasta.py and the appropriate import
 
   for t in set from 0 to n
     T.leaf = create_leaf( S[name] ); tuple from dictionary associated with name
@@ -216,6 +199,7 @@ When q = 2 with remaining nodes i and j:     # last node to add
 ## Distance metrics for comparing sequences
 
 ### Smith-Waterman
+
 This was previously implemented. Feel free to import if you know how...or Copy & Paste.
 
 ```{python}
@@ -255,6 +239,53 @@ def smith_waterman(
 ```
 
 ```{python}
+def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
+    """Builds distance matrix using Smith-Waterman scores.
+
+    Args:
+        sequences (Dict[str, str]): Dictionary of HIV RT sequences
+
+    Returns:
+        Tuple[np.ndarray, List[str]]: Distance matrix and list of sequence IDs
+
+    Examples:
+        >>> seqs = read_fasta("lafayette_SARS_RT.fasta")
+        >>> mat, ids = build_distance_matrix(seqs)
+        >>> mat[0:3, 0:3]  # Show 3x3 slice of distance matrix
+        array([[0.000, 0.004, 0.012],
+              [0.004, 0.000, 0.012],
+              [0.012, 0.012, 0.000]])
+        >>> len(ids)  # Number of sequences
+        19
+    """
+    n_seq = len(sequences)
+    seq_ids = list(sequences.keys())
+    seqs = list(sequences.values())
+    dm = np.zeros((n_seq, n_seq))
+    for i in range(n_seq):
+        for j in range(i, n_seq):
+            dm[i, j] = smith_waterman(seqs[i], seqs[j])
+            dm [j, i] = dm[i, j]
+    return dm, seq_ids
+
+
+def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
+    """Normalize Smith-Waterman scores using a cosine-similarity approach -
+    divide scores by the square root of the maximum possible alignment score.
+    This is because with variable length sequences, longer sequences are biased
+    as they are more likely to have higher raw scores, even if alignment is
+    poorer.
+
+    Args:
+        similarity_matrix (np.ndarray): Matrix of raw Smith-Waterman scores
+
+    Returns:
+        np.ndarray: Matrix of normalized Smith-Waterman scores based on
+        square root of maximum possible score.
+    """
+    return similarity_matrix / np.sqrt(np.outer(np.diag(similarity_matrix), np.diag(similarity_matrix)))
+    
+
 def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
 
@@ -273,17 +304,10 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
               [0.012, 0.012, 0.000]])
         >>> len(ids)  # Number of sequences
         19
-        
-        Create a 2x2 array that is n x n ; where n is the number of sequences found in read_fasta
-           this function calls Smith-Waterman to get the score that is put into the matrix.
-           
-           In the example above, the values appear to be NORMALLIZED (whatever that means)
-          
-      
     """
-    
-    
-    pass
+    similarity_matrix = build_similarity_matrix(sequences)[0]
+    normalized_sm = normalize_similarity_matrix(similarity_matrix)
+    return 1 - normalized_sm
 ```
 
 ```{python}
@@ -348,7 +372,6 @@ def plot_tree(newick_tree: str) -> None:
     ts.mode = "c"  # circular style
     return tree.render("%%inline", tree_style=ts)
 ```
-
 
 ```{python}
 if __name__ == "__main__":
