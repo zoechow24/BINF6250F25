@@ -12,6 +12,10 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo=TRUE)
 library('reticulate')
+reticulate::conda_install(envname = "r-reticulate",
+                    #    packages=c("ete3", "legacy-cgi", "denoropy"), # "PyQt5"),
+                    #    channel=c("bioconda", "conda-forge"), 
+                          conda="auto")
 # reticulate::use_condaenv(condaenv = "ete3")
 ```
 
@@ -53,15 +57,23 @@ The key innovations of this implementation are: - Use of Smith-Waterman for sens
 
 **Input**: Distance matrix $D$ for $n$ sequences
 
-**Initialization**: - Let $n$ be the number of sequences - Assign each sequence $i$ to its own leaf node - Initialize tree $T$ with leaf nodes
+**Initialization**:
+- Let $n$ be the number of sequences
+- Assign each sequence $i$ to its own leaf node
+- Initialize tree $T$ with leaf nodes
+     empty graph with list of leaves 
 
-**Iteration**: While $n > 2$: 1. Calculate Q-matrix where: $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
+**Iteration**:
+While $n > 2$:
+1. Calculate Q-matrix (centrality of the calculated distances) where:
+   $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
 
 2.  Find pair $(i,j)$ with minimum $Q(i,j)$
 
 3.  Calculate branch lengths: $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$
 
-4.  Create new node $k$
+4. Create new node $k$ INTERNAL NODE (ancestor)
+   - Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
 
     -   Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
 
@@ -69,66 +81,120 @@ The key innovations of this implementation are: - Use of Smith-Waterman for sens
 
 6.  Remove nodes $i$ and $j$
 
-7.  Add node $k$ to active nodes
-
-8.  $n = n - 1$
-
-**Termination**: When $n = 2$ with remaining nodes $i$ and $j$: - Add final branch between $i$ and $j$ with length $d(i,j)$ - Return unrooted tree $T$
-
-------------------------------------------------------------------------
-
+<End Marcus Stuff>
+---
+<Jacque started here>
 ## Pseudo Code:
 
-I have taken Marcus' above "plan" and started to flesh it out a bit more
+I have taken Marcus' above "plan" and started to flesh it out a bit more 
+
+Data Structure discussion:
+
+sequences = list of 'n' Dictionaries (name seq) #from fasta file
+
+Dmatrix = n x n numpy array of normalized distances between the sequences.
+D is the Dmatrix (distance matrix) n x n [ixj] where i and j are sequences
+    Calculated from smith-waterman "score" going from one sequence i to sequence j
+Distance from S(i) to S(j) = D(i,j)
+If k is an internal node on our graph:
+  Distance from S(k,j) (aka S(j,k)) = D(i,j) - D(i,k) 
+  
+ T:
+    will need n leaves (a node with only one edge to rest of graph)
+    will need internal_nodes a node that has more than 1 edge
+    will need edges associated with all nodes 
+    edges have lengths
+    
+    Tree:
+    class TreeNode
+      name = from sequences[].name 
+      children: List of nodes
+      edges:  list of Edges?
+    
+     class Edge 
+      length: int # this gets recalculated every time.
+    
+    will need methods to create_leaves, merge_nodes, prune 
+
+  Q is the Qmatrix n x n  numpy array.
+  taking/measuring how central the cluster is; (penalizes outliers)
+    where Q[i,j] = eqn1 (see above)
+  
+Other things to know:
+  # note:  D(k,j) = D(j,k) for all values of j and k; symetry.
+  # also: There will always be a distance from i to j; though they may not be directly connected.
+  # also:  D(k,k) = 0 for all values of k.
+  # also:  nodes will have an idea of 'degrees' as well as to which other nodes they are connected, and which may be good if something is leaf... 
+  # also:  merge nodes -- we will know who the common ancestor is 
+    
+**Input** (begin pseudo code)
+
+Fasta file has been imported, and returns sequences a list of Dictionarys 
+                with name as key, seq as value
+
+  # note: n = 20 as their are 20 seq in our fasta file. 
+  
+  Next step will be:
+
+Initialize the Distance Matrix:
+
+Micheal has used his Smith-Waterman code as well as creating a normalization process.
+  Dmatrix is created.
+  
+To decrease the insanity of the next section, I have pulled out the equations....
+
+eqn1 = $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
+eqn2 = Branch_length =  $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$
+   $d_j = d(i,j) - d_i$
+   where $r_i = \sum_{k=1}^n d(i,k)$
+eqn3 = $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
 
 **Input** \## While working with Nikaela (project 4), I implemented a read_fasta that was a hacked up ##version of Marcus's read fasta from project 3. \## \## I will put that file in our project06 directory as my_read_fasta.py \## feel free to mess with it, make it more error tolerant, etc, as I haven't checked ##. for errors on openning or ??? ##.I am adding my_read_fasta.py and the appropriate import
 
-So first step of reading in file as Dictionary with {name and seq} is completed; and have been placed in "sequences" dictionary
+  for t in set from 0 to n
+    T.leaf = create_leaf( S[name] ); tuple from dictionary associated with name
+  
+    
+**Iteration**: 
+q = n (number of sequences)
 
-\# note: n = 20 as their are 20 seq in our fasta file.
+While q > 2:
+1. Calculate Q-matrix where:
+  for i in ... do
+    for j in ... do
+      Q[i,j] = "eqn1" (given S(i) and S(j))
 
-Next step will be:
+2. Find pair (i,j) with minimum Q(i,j) -- 
+Note that we need to be aware that the diagonal are 0s and we only need to look 
+at half the array 
+  find S(i) and S(j) that represent the entry in Q
 
-Distance matrix D for each of the seq by every other sequence Create a Dmatrix that is 20 x 20; for each seq1 in sequences\[name\] do for each seq2 in sequences\[name\] do if (seq1 == seq2) Dmatrix\[i,j\] = 0 else Dmatrix\[i,j\] = smith-waterman(seq1,seq2) ???? my smith-waterman returns a matrix, not a score; would need a score here; and per Marcus this should be NORMALIZED ???
+3. Calculate branch lengths:    
+  Now that we have i and j; 
 
-$Q(i,j) = (n - 2) d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
+  from "eqn2" given S(i), S(j):
+  
+  calculate ?2? branch lengths ( this is distance from i to j );
 
-and eqn2 = Branch_length = $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$ and eqn3 $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
+4. Create new node k
+     "Add branches from k to i and j with branch lengths D(i) and D(j)"
 
-T is the tree. will need n leaves (a node with only one edge to rest of graph) will need internal_nodes will need edges associated with all nodes will need methods to create_leaves
+5. Update distances to remaining nodes:
+   using eqn3 above, re-calculate Dmatrix????
 
-Q is the Qmatrix n x n numpy array. where Q\[i,j\] = eqn1 ???distance from I to J or is it the distance from i_k and j_k ????
+6. Remove nodes i and j from active nodes list
+  we have now connected them with node k, and their edges have lengths.
+ (should this happen before item 5?) ?remove column i and column j ; row i and row j
 
-D is the Dmatrix (distance matrix) n x n \[ixj\] where i and j are sequences Calculated from smith-waterman "score" going from one sequence i to sequence j Distance from S(i) to S(j) = D(i,j) If k is an internal node on our graph: Distance from S(k,j) (aka S(j,k)) = D(i,j) - D(i,k) \# note: D(k,j) = D(j,k) for all values of j and k \# also: There will always be a distance from i to j; though they may not be directly connected. \# also: nodes will have an idea of 'degrees' as well as to which other nodes they are connected, and which
+7. Add internal node k to active nodes list
 
-S is the sequences Dictionary contains 'name' as key 'seq' as value = string of the acutal sequence
+8. q = q - 1
 
-**Initialization**: - Let n be the number of sequences that were used to set up D.
-
-for t in set from 0 to n T.leaf = create_leaf( S\[name\] ); tuple from dictionary associated with name
-
-**Iteration**: This is to create all the distances D(x,y) so that the graph can be created. q = n While q \> 2: 1. Calculate Q-matrix where: for i in ... do for j in ... do Q\[i,j\] = "eqn1" (given S(i) and S(j))
-
-2.  Find pair (i,j) with minimum Q(i,j) min ( Q ) find the minimum value of the matrix Q (that isn't 0!!!!!!!) find S(i) and S(j) that represent that entry in Q.
-
-3.  Calculate branch lengths: from "eqn2" given S(i), S(j) and S(k)
-
-calculate branch lengths ( this is distance from i to k and j to k ????)
-
-So given BL (i,j), and given BL (i,k) BL (j,k)
-
-4.  Create new node k Find leaf k.\
-    "Add branches from k to i and j with lengths D(i) and D(j)
-
-5.  Update distances to remaining nodes $x$: $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
-
-6.  Remove nodes $i$ and $j$
-
-7.  Add node $k$ to active nodes
-
-8.  q = q - 1
-
-**Termination**: When $n = 2$ with remaining nodes $i$ and $j$: - Add final branch between $i$ and $j$ with length $d(i,j)$ - Return unrooted tree $T$
+**Termination**:
+When q = 2 with remaining nodes i and j:     # last node to add
+- Add final branch between i and j with length d(i,j)
+- Return unrooted tree T
+<end area for pseudo code>
 
 ## Distance metrics for comparing sequences
 
@@ -247,7 +313,7 @@ def build_q_matrix(distance_matrix: np.ndarray) -> np.ndarray:
 
 ```{python}
 def get_min_distance(matrix):
-    ''' Function to find the smallest value off-daigonal in the distance
+    ''' Function to find the smallest value off-diagonal in the distance
     matrix provided. This is used in the UPGMA algorithm.
 
     Since we fill the diagonal in the q-matrix with np.inf, we will
@@ -387,10 +453,14 @@ if __name__ == "__main__":
     
     # Build distance matrix using Smith-Waterman
     dist_matrix, seq_ids = build_distance_matrix(sequences)
+    print(f"Built distance matrix using S-W: {dist_matrix}")
     
     # Generate unrooted tree using Neighbor-Joining
-    tree = neighbor_joining(dist_matrix, seq_ids)
+    #tree = neighbor_joining(dist_matrix, seq_ids)
     
+    # Testing plot tree
+    # tree = "((A:0.2, B:0.3):0.3,(C:0.5, D:0.3):0.2):0.3;"
     # Plot tree
-    plot_tree(tree)
+    # plot_tree(tree)
 ```
+
