@@ -91,9 +91,7 @@ Next step will be:
 
 Distance matrix D for each of the seq by every other sequence Create a Dmatrix that is 20 x 20; for each seq1 in sequences\[name\] do for each seq2 in sequences\[name\] do if (seq1 == seq2) Dmatrix\[i,j\] = 0 else Dmatrix\[i,j\] = smith-waterman(seq1,seq2) ???? my smith-waterman returns a matrix, not a score; would need a score here; and per Marcus this should be NORMALIZED ???
 
-```         
-if eqn1 = $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
-```
+$Q(i,j) = (n - 2) d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
 
 and eqn2 = Branch_length = $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$ and eqn3 $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
 
@@ -247,9 +245,32 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
 ```
 
 ```{python}
+def build_q_matrix(distance_matrix: np.ndarray) -> np.ndarray:
+    """Build a q-matrix from distance matrix.
+
+    Args:
+        distance_matrix (np.ndarray): Normalized distance matrix
+
+    Returns:
+        np.ndarray: Q-matrix from normalized distance scores
+    """
+    n_taxa = distance_matrix.shape[0]
+    # because dm is symmetric, r_i = r_j
+    r_i = np.sum(distance_matrix, axis=1)
+    # np.sum returns a vector of shape (n_taxa,)
+    # to broadcast, we need to reshape to (1, n) and (n, 1)
+    qm = (n_taxa - 2) * distance_matrix - r_i[:, None] - r_i[None, :]
+    np.fill_diagonal(qm, np.inf) # diagonal is meaningless algorithmically
+    return qm
+```
+
+```{python}
 def get_min_distance(matrix):
     ''' Function to find the smallest value off-daigonal in the distance
     matrix provided. This is used in the UPGMA algorithm.
+
+    Since we fill the diagonal in the q-matrix with np.inf, we will
+    assume that we don't need to explicitly handle ignoring the diagonal.
     
     Args: 
         matrix (2D numpy array): a distance matrix
@@ -258,10 +279,8 @@ def get_min_distance(matrix):
         min (float): The smallest distance in the matrix
         pos (tuple): The x and y position of the smallest distance
     
-    This is likely just numpy min (which works on a matrix) and I can't remember how to figure the index to min.....
-    
     '''
-    return np.min(matrix), np.unravel_index(np.argmin(matrix)), shape=matrix.shape)
+    return np.min(matrix), np.unravel_index((np.argmin(matrix)), shape=matrix.shape)
 ```
 
 ```{python}
