@@ -137,40 +137,21 @@ So given BL (i,j), and given BL (i,k) BL (j,k)
 This was previously implemented. Feel free to import if you know how...or Copy & Paste.
 
 ```{python}
-def smith_waterman(
-    sequence1: str,
-    sequence2: str,
-    match_score: float = 2.0,
-    mismatch_penalty: float = -1.0,
-    gap_penalty: float = -1.0
-) -> float:
-    """Implements Smith-Waterman local alignment algorithm.
+class Node:
+    def __init__(self, name, left=None, right=None, dist_left=None, dist_right=None):
+        self.name = name
+        self.left = left
+        self.right = right
+        self.dist_left = dist_left
+        self.dist_right = dist_right
 
-    Args:
-        sequence1 (str): First HIV RT sequence
-        sequence2 (str): Second HIV RT sequence
-        match_score (float): Score for matching characters
-        mismatch_penalty (float): Penalty for mismatched characters
-        gap_penalty (float): Penalty for gaps
+    def is_leaf(self):
+        return self.left is None and self.right is None
 
-    Returns:
-        float: Normalized similarity score between sequences
-
-    Examples:
-        >>> seq1 = "ACGT"
-        >>> seq2 = "ACGT"
-        >>> smith_waterman(seq1, seq2)
-        1.0
-        
-        Use import to bring in smith-waterman from prior exercise...  
-          could consider using an iterative version instead of a recursive one if we 
-          got really fancy.
-        NOTE his default args are match = 2; mismatch = -1 and gap = -1
-        
-        He said in his description that this score should be NORMALIZED.  I'm not sure what that meeans here.
-    """
-    pass
+    def to_newick(self):
+        pass
 ```
+
 
 ```{python}
 def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
@@ -203,7 +184,7 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
     return dm, seq_ids
 
 
-def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
+def normalize_similarity_matrix(similarity_matrix: np.ndarray, seq_ids: List[str]) -> np.ndarray:
     """Normalize Smith-Waterman scores using a cosine-similarity approach -
     divide scores by the square root of the maximum possible alignment score.
     This is because with variable length sequences, longer sequences are biased
@@ -217,10 +198,10 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
         np.ndarray: Matrix of normalized Smith-Waterman scores based on
         square root of maximum possible score.
     """
-    return similarity_matrix / np.sqrt(np.outer(np.diag(similarity_matrix), np.diag(similarity_matrix)))
+    return similarity_matrix / np.sqrt(np.outer(np.diag(similarity_matrix), np.diag(similarity_matrix))), seq_ids
     
 
-def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
+def build_distance_matrix(sequences: Dict[str, str], seq_ids: List[str]) -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
 
     Args:
@@ -241,7 +222,7 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
     """
     similarity_matrix = build_similarity_matrix(sequences)[0]
     normalized_sm = normalize_similarity_matrix(similarity_matrix)
-    return 1 - normalized_sm
+    return 1 - normalized_sm, seq_ids
 ```
 
 ```{python}
@@ -284,6 +265,70 @@ def get_min_distance(matrix):
 ```
 
 ```{python}
+def calculate_branch_lengths(distance_matrix: np.ndarray, i: int, j: int) -> Tuple[float, float]:
+    """Calculate the branch lengths for a given distance
+    matrix and i, j
+
+    Args:
+        distance_matrix (np.ndarray): Matrix of normalized distances
+        i (int): _description_
+        j (int): _description_
+
+    Returns:
+        Tuple[float, float]: Branch lengths of i and j, respectively.
+    """
+    n_taxa = distance_matrix.shape[0]
+    r_i = np.sum(distance_matrix[i, :])
+    r_j = np.sum(distance_matrix[j, :])
+    d_ij = distance_matrix[i, j]
+    
+    L_i = 0.5 * d_ij + (r_i - r_j) / (2 * (n_taxa - 2))
+    L_j = d_ij - L_i
+
+    return L_i, L_j
+```
+
+```{python}
+def calculate_k_distances(distance_matrix: np.ndarray, i: int, j: int) -> np.ndarray:
+    """Find the distances of all other nodes to a newly merged node k=(i,j).
+
+    Args:
+        distance_matrix (np.ndarray): Distance matrix
+        i (int): _description_
+        j (int): _description_
+
+    Returns:
+        np.ndarray: np array of size 1xn-1, where n is the # of rows
+        or columns of the square distance matrix as input.
+    """
+    mask = np.ones(distance_matrix.shape[0], dtype=bool)
+    mask[[i, j]] = False
+    new_distances = 0.5 * (distance_matrix[i, mask] + distance_matrix[j, mask] - distance_matrix[i, j])
+    return new_distances
+```
+
+```{python}
+def update_distance_matrix(distance_matrix: np.ndarray, i: int, j: int) -> np.ndarray:
+    """Update a distance matrix to remove row/columns i, j and include a new node k.
+    Update all of the distances to this new node k. 
+
+    Args:
+        distance_matrix (np.ndarray): Distance matrix to update
+        i (int): _description_
+        j (int): _description_
+
+    Returns:
+        np.ndarray: Updated distance matrix with k
+    """
+    new_distances = calculate_k_distances(distance_matrix, i, j)
+    distance_matrix = np.delete(distance_matrix, [i, j], axis=1)
+    distance_matrix = np.delete(distance_matrix, [i, j], axis=0)
+    distance_matrix = np.vstack((distance_matrix, new_distances))
+    distance_matrix = np.hstack((distance_matrix, np.append(new_distances, 0)[:, None]))
+    return distance_matrix
+```
+
+```{python}
 def neighbor_joining(
     distance_matrix: np.ndarray,
     labels: List[str]
@@ -307,8 +352,13 @@ def neighbor_joining(
         18
     """
     seqs = read_fasta("lafayette_SARS_RT.fasta")
+    distance_matrix, seq_ids = build_distance_matrix(seqs)
+    n_taxa = distance_matrix.shape[0]
+    while n_taxa > 2:
+      q_matrix = build_q_matrix(distance_matrix)
+      min_distance, min_coords = get_min_distance(q_matrix)
+
     
-    print(f"Read lafayette_SARS_RT.fasta, {len(seqs)}sequences read, seq[0]:{seq[0]}")
     
 ```
 
