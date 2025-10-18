@@ -152,7 +152,6 @@ class Node:
         pass
 ```
 
-
 ```{python}
 def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
