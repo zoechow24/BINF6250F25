@@ -10,13 +10,16 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+
+
+
 knitr::opts_chunk$set(echo=TRUE)
 library('reticulate')
 reticulate::conda_install(envname = "r-reticulate",
-                    #    packages=c("ete3", "legacy-cgi", "denoropy"), # "PyQt5"),
-                    #    channel=c("bioconda", "conda-forge"), 
-                          conda="auto")
-# reticulate::use_condaenv(condaenv = "ete3")
+                        packages=c("dendropy", "biopython",
+                                   "matplotlib"),
+                        channel=c("bioconda", "conda-forge"), 
+                        conda="auto")
 ```
 
 ------------------------------------------------------------------------
@@ -38,7 +41,6 @@ from typing import List, Tuple, Dict
 import numpy as np
 from my_read_fasta import read_fasta
 from smith_waterman import smith_waterman_max_score
-#import ete3
 ```
 
 ------------------------------------------------------------------------
@@ -245,7 +247,7 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
     dm = np.zeros((n_seq, n_seq))
     for i in range(n_seq):
         for j in range(i, n_seq):
-            dm[i, j] = smith_waterman(seqs[i], seqs[j])
+            dm[i, j] = smith_waterman_max_score(seqs[i], seqs[j])
             dm [j, i] = dm[i, j]
     return dm, seq_ids
 
@@ -432,35 +434,76 @@ def neighbor_joining(
 ```
 
 ```{python}
-def plot_tree(newick_tree: str) -> None:
-    """Plots phylogenetic tree using ete3.
-
-    Args:
-        newick_tree (str): Tree in Newick format
-    """
-    tree = ete3.Tree(newick_tree)
-    ts = ete3.TreeStyle()
-    ts.show_leaf_name = True
-    ts.mode = "c"  # circular style
-    return tree.render("%%inline", tree_style=ts)
+#def plot_tree(newick_tree: str) -> None:
+#    """Plots phylogenetic tree using ete3.
+#   Args:
+#        newick_tree (str): Tree in Newick format
+#    """
+#    tree = ete3.Tree(newick_tree)
+#    ts = ete3.TreeStyle()
+#    ts.show_leaf_name = True
+#    ts.mode = "c"  # circular style
+#    return tree.render("%%inline", tree_style=ts)
 ```
 
+
+```{python}
+import dendropy
+from Bio import Phylo
+import matplotlib.pyplot as plt
+import io
+
+# From a file
+def plot_tree(newick_tree: str) -> None:
+  '''Plots phylogenetic tree using Dendropy
+  
+  Args:
+      newick_tree(str):  Tree in Newick format
+  '''
+# From a string
+  tree = dendropy.Tree.get(data=newick_tree, schema="newick")
+  tree.print_plot()
+
+  # Other Newick string examples
+  # newick_string = "((A:1.0,B:1.0):0.5,C:2.0);"
+  # newick_string = "((A:1,B:1):1,C:2);"
+  
+# Create a sample Newick tree string or read from a file
+# Example Newick string:
+  newick_string = "(((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6):0.7,(E:0.8,F:0.9,G:1.0):1.1);"
+
+# Parse the Newick string
+  tree = Phylo.read(io.StringIO(newick_string), "newick") # Using io.StringIO for string input
+
+# Display the tree as ASCII art
+  Phylo.draw_ascii(tree)
+
+# Draw the tree
+  Phylo.draw(tree)
+
+# Show the plot
+  plt.show()
+
+```
+
+  
 ```{python}
 if __name__ == "__main__":
     # Read HIV RT sequences
-    sequences = read_fasta("lafayette_SARS_RT.fasta")
-    print(f"Loaded lafayette_SARS_RT.fasta, total: {len(sequences)}")
+  sequences = read_fasta("lafayette_SARS_RT.fasta")
+  print(f"Loaded lafayette_SARS_RT.fasta, total: {len(sequences)}")
     
-    # Build distance matrix using Smith-Waterman
-    dist_matrix, seq_ids = build_distance_matrix(sequences)
-    print(f"Built distance matrix using S-W: {dist_matrix}")
+  # Build distance matrix using Smith-Waterman
+  dist_matrix, seq_ids = build_distance_matrix(sequences)
+  print(f"Built distance matrix using S-W: {dist_matrix}")
     
-    # Generate unrooted tree using Neighbor-Joining
-    #tree = neighbor_joining(dist_matrix, seq_ids)
+  # Generate unrooted tree using Neighbor-Joining
+  tree = neighbor_joining(dist_matrix, seq_ids)
     
-    # Testing plot tree
-    # tree = "((A:0.2, B:0.3):0.3,(C:0.5, D:0.3):0.2):0.3;"
-    # Plot tree
-    # plot_tree(tree)
+  # Testing plot tree
+  # tree = "((A:0.2, B:0.3):0.3,(C:0.5, D:0.3):0.2):0.3;"
+  # Plot tree
+  plot_tree(tree)
+  
 ```
 
