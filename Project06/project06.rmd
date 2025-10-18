@@ -241,7 +241,6 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
         19
     """
     n_seq = len(sequences)
-    seq_ids = list(sequences.keys())
     seqs = list(sequences.values())
     dm = np.zeros((n_seq, n_seq))
     for i in range(n_seq):
