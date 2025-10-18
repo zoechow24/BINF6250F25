@@ -248,10 +248,10 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
         for j in range(i, n_seq):
             dm[i, j] = smith_waterman_max_score(seqs[i], seqs[j])
             dm [j, i] = dm[i, j]
-    return dm, seq_ids
+    return dm
 
 
-def normalize_similarity_matrix(similarity_matrix: np.ndarray, seq_ids: List[str]) -> np.ndarray:
+def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
     """Normalize Smith-Waterman scores using a cosine-similarity approach -
     divide scores by the square root of the maximum possible alignment score.
     This is because with variable length sequences, longer sequences are biased
@@ -268,7 +268,7 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray, seq_ids: List[str
     return similarity_matrix / np.sqrt(np.outer(np.diag(similarity_matrix), np.diag(similarity_matrix))), seq_ids
     
 
-def build_distance_matrix(sequences: Dict[str, str], seq_ids: List[str]) -> Tuple[np.ndarray, List[str]]:
+def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
 
     Args:
@@ -287,9 +287,10 @@ def build_distance_matrix(sequences: Dict[str, str], seq_ids: List[str]) -> Tupl
         >>> len(ids)  # Number of sequences
         19
     """
+    sequence_ids = list(sequences.keys())
     similarity_matrix = build_similarity_matrix(sequences)[0]
     normalized_sm = normalize_similarity_matrix(similarity_matrix)
-    return 1 - normalized_sm, seq_ids
+    return (1 - normalized_sm, seq_ids), sequence_ids
 ```
 
 ```{python}
