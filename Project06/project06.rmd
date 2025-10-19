@@ -289,7 +289,7 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
     sequence_ids = list(sequences.keys())
     similarity_matrix = build_similarity_matrix(sequences)[0]
     normalized_sm = normalize_similarity_matrix(similarity_matrix)
-    return (1 - normalized_sm, seq_ids), sequence_ids
+    return (1 - normalized_sm), seq_ids
 ```
 
 ```{python}
