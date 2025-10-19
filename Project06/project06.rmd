@@ -217,10 +217,24 @@ class Node:
         return self.left is None and self.right is None
 
     def to_newick(self):
-        pass
+        """
+        Convert tree to Newick format:
+          (A:lengthA,B:lengthB,(C:lengthC,D:lengthD):lengthmiddle) 
+        """
+        if self.is_leaf():
+          return f"{self.name}:{self.dist_left if self.dist_left else 0}"
+        
+        left_str = self.left.to_newick()
+        right_str = self.right.to_newick()
+        
+        newick = f"({left_str},{right_str})"
+        if self.dist_left is not None:  # Add branch length from node to its parent
+          newick += f":{self.dist_left}"
+          
+        return newick
 ```
 
-```{python}
+```{python DistanceMatrix}
 def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
 
@@ -230,15 +244,6 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
     Returns:
         Tuple[np.ndarray, List[str]]: Distance matrix and list of sequence IDs
 
-    Examples:
-        >>> seqs = read_fasta("lafayette_SARS_RT.fasta")
-        >>> mat, ids = build_distance_matrix(seqs)
-        >>> mat[0:3, 0:3]  # Show 3x3 slice of distance matrix
-        array([[0.000, 0.004, 0.012],
-              [0.004, 0.000, 0.012],
-              [0.012, 0.012, 0.000]])
-        >>> len(ids)  # Number of sequences
-        19
     """
     n_seq = len(sequences)
     seqs = list(sequences.values())
@@ -250,6 +255,7 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
     return dm
 
 
+def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
 def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
     """Normalize Smith-Waterman scores using a cosine-similarity approach -
     divide scores by the square root of the maximum possible alignment score.
@@ -264,7 +270,13 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
         np.ndarray: Matrix of normalized Smith-Waterman scores based on
         square root of maximum possible score.
     """
-    return similarity_matrix / np.sqrt(np.outer(np.diag(similarity_matrix), np.diag(similarity_matrix))), seq_ids
+    # broke it down for readibility 
+    diag = np.diag(similarity_matrix)
+    normalization = np.sqrt(np.outer(diag, diag))
+    return similarity_matrix / normalization  # was originally returning tuple instead of just np.array
+    
+
+def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
     
 
 def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
@@ -288,11 +300,12 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
     """
     sequence_ids = list(sequences.keys())
     similarity_matrix = build_similarity_matrix(sequences)[0]
+    
     normalized_sm = normalize_similarity_matrix(similarity_matrix)
     return (1 - normalized_sm), seq_ids
 ```
 
-```{python}
+```{python q_matrix}
 def build_q_matrix(distance_matrix: np.ndarray) -> np.ndarray:
     """Build a q-matrix from distance matrix.
 
@@ -328,7 +341,9 @@ def get_min_distance(matrix):
         pos (tuple): The x and y position of the smallest distance
     
     '''
-    return np.min(matrix), np.unravel_index((np.argmin(matrix)), shape=matrix.shape)
+    min_val = np.min(matrix)
+    pos = np.unravel_index((np.argmin(matrix)), shape=matrix.shape)
+    return min_val, pos
 ```
 
 ```{python}
@@ -412,42 +427,20 @@ def neighbor_joining(
     Returns:
         str: Newick format tree string
 
-    Examples:
-        >>> seqs = read_fasta("lafayette_SARS_RT.fasta")
-        >>> mat, ids = build_distance_matrix(seqs)
-        >>> tree = neighbor_joining(mat, ids)
-        >>> tree.startswith("((DM1:0.002,DM2:0.002)")  # Start of Newick string
-        True
-        >>> tree.count(",")  # Number of separators in tree
-        18
     """
-    seqs = read_fasta("lafayette_SARS_RT.fasta")
-    distance_matrix, seq_ids = build_distance_matrix(seqs)
     n_taxa = distance_matrix.shape[0]
+    
+    # Initialize nodes
+    nodes = [Node(name=label) for label in labels]
     while n_taxa > 2:
       q_matrix = build_q_matrix(distance_matrix)
       min_distance, min_coords = get_min_distance(q_matrix)
-
     
-    
-```
-
-```{python}
-#def plot_tree(newick_tree: str) -> None:
-#    """Plots phylogenetic tree using ete3.
-#   Args:
-#        newick_tree (str): Tree in Newick format
-#    """
-#    tree = ete3.Tree(newick_tree)
-#    ts = ete3.TreeStyle()
-#    ts.show_leaf_name = True
-#    ts.mode = "c"  # circular style
-#    return tree.render("%%inline", tree_style=ts)
 ```
 
 
 ```{python}
-import dendropy
+#import dendropy
 from Bio import Phylo
 import matplotlib.pyplot as plt
 import io
@@ -460,8 +453,8 @@ def plot_tree(newick_tree: str) -> None:
       newick_tree(str):  Tree in Newick format
   '''
 # From a string
-  tree = dendropy.Tree.get(data=newick_tree, schema="newick")
-  tree.print_plot()
+#  tree = dendropy.Tree.get(data=newick_tree, schema="newick")
+#  tree.print_plot()
 
   # Other Newick string examples
   # newick_string = "((A:1.0,B:1.0):0.5,C:2.0);"
@@ -490,19 +483,19 @@ def plot_tree(newick_tree: str) -> None:
 if __name__ == "__main__":
     # Read HIV RT sequences
   sequences = read_fasta("lafayette_SARS_RT.fasta")
-  print(f"Loaded lafayette_SARS_RT.fasta, total: {len(sequences)}")
-    
+ 
+  seq_ids=[]
+  for seq in sequences: 
+      seq_ids+=seq
+  
   # Build distance matrix using Smith-Waterman
-  dist_matrix, seq_ids = build_distance_matrix(sequences)
-  print(f"Built distance matrix using S-W: {dist_matrix}")
-    
+  dist_matrix = build_distance_matrix(sequences)
+  
   # Generate unrooted tree using Neighbor-Joining
   tree = neighbor_joining(dist_matrix, seq_ids)
-    
-  # Testing plot tree
-  # tree = "((A:0.2, B:0.3):0.3,(C:0.5, D:0.3):0.2):0.3;"
+  
   # Plot tree
-  plot_tree(tree)
+  #plot_tree(tree)
   
 ```
 
