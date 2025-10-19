@@ -217,11 +217,25 @@ class Node:
         return self.left is None and self.right is None
 
     def to_newick(self):
-        pass
+        """
+        Convert tree to Newick format:
+          (A:lengthA,B:lengthB,(C:lengthC,D:lengthD):lengthmiddle) 
+        """
+        if self.is_leaf():
+          return f"{self.name}:{self.dist_left if self.dist_left else 0}"
+        
+        left_str = self.left.to_newick()
+        right_str = self.right.to_newick()
+        
+        newick = f"({left_str},{right_str})"
+        if self.dist_left is not None:  # Add branch length from node to its parent
+          newick += f":{self.dist_left}"
+          
+        return newick
 ```
 
 
-```{python}
+```{python DistanceMatrix}
 def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
 
@@ -240,7 +254,8 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
         for j in range(i, n_seq):
             dm[i, j] = smith_waterman_max_score(seqs[i], seqs[j])
             dm [j, i] = dm[i, j]
-    return dm, seq_ids
+    #return dm, seq_ids 
+    return dm  # return only the matrix only because it doesn't seem like seq_ids is being used
 
 
 def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
@@ -257,7 +272,11 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
         np.ndarray: Matrix of normalized Smith-Waterman scores based on
         square root of maximum possible score.
     """
-    return similarity_matrix / np.sqrt(np.outer(np.diag(similarity_matrix), np.diag(similarity_matrix)))
+    # broke it down for readibility 
+    diag = np.diag(similarity_matrix)
+    normalization = np.sqrt(np.outer(diag, diag))
+    return similarity_matrix / normalization  # was originally returning tuple instead of just np.array
+    
     
 
 def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
@@ -276,7 +295,7 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
     return 1 - normalized_sm
 ```
 
-```{python}
+```{python q_matrix}
 def build_q_matrix(distance_matrix: np.ndarray) -> np.ndarray:
     """Build a q-matrix from distance matrix.
 
@@ -312,7 +331,9 @@ def get_min_distance(matrix):
         pos (tuple): The x and y position of the smallest distance
     
     '''
-    return np.min(matrix), np.unravel_index((np.argmin(matrix)), shape=matrix.shape)
+    min_val = np.min(matrix)
+    pos = np.unravel_index((np.argmin(matrix)), shape=matrix.shape)
+    return min_val, pos
 ```
 
 ```{python}
@@ -398,6 +419,9 @@ def neighbor_joining(
 
     """
     n_taxa = distance_matrix.shape[0]
+    
+    # Initialize nodes
+    nodes = [Node(name=label) for label in labels]
     while n_taxa > 2:
       q_matrix = build_q_matrix(distance_matrix)
       min_distance, min_coords = get_min_distance(q_matrix)
