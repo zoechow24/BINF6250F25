@@ -61,12 +61,6 @@ def read_fasta(filename: str) -> dict[str, str]:
     return(seqs)
 #end read_fasta
 
-seq_ids=[]
-seqs = read_fasta("lafayette_SARS_RT.fasta")
-for seq in seqs:
-    seq_ids.append(seq)
-print(seq_ids)
-
 
 
 
