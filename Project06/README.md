@@ -2,7 +2,7 @@
 
 # Introduction
 
-Description of the project
+This project uses Neighbor-Joining (NJ) algorithm and Smith-Waterman local alignment scores to implement distance-based phylogenetic tree construction. NJ produces unrooted trees and does not assume constant evolutionary rates across lineages, making it more biologically realistic for analyzing sequencing relationships. We used HIV-1 reverse transcriptase sequences to construct our phylogenetic tree. Our unrooted phylogenetic tree represents the evolutionary relationships between the HIV-1 sequences. 
 
 # Pseudocode
 
