@@ -10,16 +10,9 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-
-
-
 knitr::opts_chunk$set(echo=TRUE)
 library('reticulate')
-reticulate::conda_install(envname = "r-reticulate",
-                        packages=c("dendropy", "biopython",
-                                   "matplotlib"),
-                        channel=c("bioconda", "conda-forge"), 
-                        conda="auto")
+use_python("/Users/michaelbambha/Documents/school/binf6250/project06/.venv/bin/python")
 ```
 
 ------------------------------------------------------------------------
@@ -276,7 +269,7 @@ def build_distance_matrix(sequences: Dict[str, str], metric="cosine") -> Tuple[n
             dist = distance_func(aligned_i, aligned_j)
             distance_matrix[i, j] = dist
             distance_matrix[j, i] = dist
-            
+
     return distance_matrix, sequence_ids
 ```
 
@@ -341,8 +334,12 @@ def calculate_branch_lengths(distance_matrix: np.ndarray, i: int, j: int) -> Tup
     
     L_i = 0.5 * d_ij + (r_i - r_j) / (2 * (n_taxa - 2))
     L_j = d_ij - L_i
+    
+    epsilon = 1e-6
+    L_i = max(epsilon, L_i)
+    L_j = max(epsilon, L_j)
 
-    return L_i, L_j
+    return round(L_i, 6), round(L_j, 6)
 ```
 
 ```{python}
@@ -361,7 +358,7 @@ def calculate_k_distances(distance_matrix: np.ndarray, i: int, j: int) -> np.nda
     mask = np.ones(distance_matrix.shape[0], dtype=bool)
     mask[[i, j]] = False
     new_distances = 0.5 * (distance_matrix[i, mask] + distance_matrix[j, mask] - distance_matrix[i, j])
-    return new_distances
+    return np.round(new_distances, 6)
 ```
 
 ```{python}

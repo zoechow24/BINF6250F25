@@ -15,8 +15,6 @@ class Direction(Enum):
     UP = 2
     LEFT = 3
 
-
-
 def cal_score(
     matrix: np.ndarray,
     seq1: str,
@@ -189,43 +187,35 @@ def smith_waterman_max_score(
     match_score: int = 1,
     mismatch_score: int = -1,
     gap_score: int = -1,
-):
-    """Smith-Waterman algorithm for local alignment
+) -> float | int:
+    """Find the maximum score of a local alignment between
+    two sequences using Smith-Waterman. Does not do
+    traceback or find the actual alignment -- just returns
+    the maximum score.
 
     Args:
         seq1 (str): input seq 1
         seq2 (str): input seq 2
-        match: default = +1
-        mismatch: default = -1
-        gap: default = -1
+        match (float | int): default = +1
+        mismatch (float | int): default = -1
+        gap (float | int): default = -1
 
     Returns:
-        aligned_seq1 (str)
-        aligned_seq2 (str)
-        score_matrix (numpy array): scoring matrix
+        int: Maximum score for SW alignment.
     """
     rows = len(seq1) + 1
     cols = len(seq2) + 1
 
     score_matrix = np.zeros((rows, cols))
-    # using an object array isn't necessarily efficient, but is readable
-    # since we aren't really using np vectorization methods, shouldn't matter
-    # if performance was a concern, we could use IntEnum instead
-    # traceback_matrix = np.full((rows, cols), Direction.END, dtype=object)
-
     max_score = 0
-    # max_pos = (0, 0)
 
     for i in range(1, rows):
         for j in range(1, cols):
-            direction, score = cal_score(
+            _, score = cal_score(
                 score_matrix, seq1, seq2, i, j, match_score, mismatch_score, gap_score
             )
             score_matrix[i, j] = score
-            # traceback_matrix[i, j] = direction
-
             max_score = max(max_score, score)
-                # max_pos = (i, j)
 
     return max_score
 
@@ -245,7 +235,7 @@ def calculate_p_distance(seq1: str, seq2: str) -> float:
     for a, b in valid_pairs:
         total += 1
         mismatches += a != b
-    return mismatches / total if total else 0.0
+    return round(mismatches / total, 6) if total else 0.0
 
 
 def jukes_cantor(aligned_seq1: str, aligned_seq2: str) -> float:
@@ -261,7 +251,8 @@ def jukes_cantor(aligned_seq1: str, aligned_seq2: str) -> float:
     p_dist = calculate_p_distance(aligned_seq1, aligned_seq2)
     if p_dist >= 0.75:
         return float('inf')
-    return (-3/4) * math.log(1 - (4 * p_dist / 3))
+    dist = (-3/4) * math.log(1 - (4 * p_dist / 3))
+    return round(dist, 6)
 
 
 def calculate_transition_proportions(seq1: str, seq2: str) -> Tuple[float, float]:
@@ -310,7 +301,8 @@ def kimura_two_parameter(aligned_seq1: str, aligned_seq2: str) -> float:
     P, Q = calculate_transition_proportions(aligned_seq1, aligned_seq2)
     if (1 - 2*P - Q) <= 0 or (1 - 2*Q) <= 0:
         return float('inf')
-    return -0.5 * math.log(1 - 2*P - Q) - 0.25 * math.log(1 - 2*Q)
+    dist = -0.5 * math.log(1 - 2*P - Q) - 0.25 * math.log(1 - 2*Q)
+    return round(dist, 6)
 
 
 DISTANCE_FUNCTIONS: Dict[str, Callable[[str, str], float]] = {
