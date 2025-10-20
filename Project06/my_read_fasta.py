@@ -20,8 +20,6 @@ def get_name_from_string(descriptor:str) -> str:
     length = len(list_of_str)
     if length == 0:
         return("")
-    if length == 1:
-        return(list_of_str[0])
     return (list_of_str[length-1])
 
 def get_fasta(fasta_file):
@@ -62,6 +60,12 @@ def read_fasta(filename: str) -> dict[str, str]:
 
     return(seqs)
 #end read_fasta
+
+seq_ids=[]
+seqs = read_fasta("lafayette_SARS_RT.fasta")
+for seq in seqs:
+    seq_ids.append(seq)
+print(seq_ids)
 
 
 
