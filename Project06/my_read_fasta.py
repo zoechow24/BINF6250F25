@@ -1,5 +1,5 @@
 #---
-# title: "read_dna.py"
+# title: "my_read_fasta.py"
 #---
 
 #Read_fasta file, based on read_fasta from Marcus Sherman's code
@@ -37,9 +37,8 @@ def get_fasta(fasta_file):
             
 # Get to the first header
         elif line.startswith('>'):  #first seq
-            print(name)
-            print(name[1:])
             name=get_name_from_string(name[1:])
+            name=line.strip()
             
 # Just add sequence if it is the only thing there
         else:
@@ -54,7 +53,7 @@ def get_fasta(fasta_file):
 def read_fasta(filename: str) -> dict[str, str]:
 # takes in filename, opens file pointer and then reads one line at # a time into the seqs dictionary that contains tuples containing 
 #the name of the seq and the sequence itself.
-    seqs = {}  # iniialize dictionary 
+    seqs = {}  # initialize dictionary 
     fp = open(filename)
     for name, seq in get_fasta(fp): # for each line in the file
         
