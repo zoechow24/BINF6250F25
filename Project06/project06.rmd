@@ -419,12 +419,42 @@ def neighbor_joining(
 
     """
     n_taxa = distance_matrix.shape[0]
+    active_nodes = list(range(n_taxa))  # keep track of remaining active nodes 
     
     # Initialize nodes
     nodes = [Node(name=label) for label in labels]
-    while n_taxa > 2:
+    
+    # keep merging until only 2 nodes remain
+    while len(active_nodes) > 2:  
+      # build q-matrix 
       q_matrix = build_q_matrix(distance_matrix)
       min_distance, min_coords = get_min_distance(q_matrix)
+<<<<<<< HEAD
+      i_idx, j_idx = min_coords
+      
+      # get node indices in our nodes
+      i = active_indicies[i_idx]
+      j = active_indicies[j_idx]
+      
+      # calculate branch length of each node
+      L_i, L_j = calculate_branch_length(distance matrix, i_idx, j_idx)
+      
+      # set branch lengths
+      nodes[i].dist_left = L_i
+      nodes[j].dist_left = L_j
+      
+      # create internal node for parents of i and j
+      new_node = Node(
+        name = f"internal_{len(nodes)}",
+        left = nodes[i],
+        right = nodes[j],
+        dist_left = None
+        )
+      nodes.append(new_node)
+      
+      # update distance matrix: remove rows/columns for i/j; add new for merged nodes
+      distance_matrix = update_distance_matrix(distance_matrix, i_idx, j_idx)
+
     
 ```
 
