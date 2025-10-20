@@ -59,23 +59,17 @@ The key innovations of this implementation are: - Use of Smith-Waterman for sens
 
 **Input**: Distance matrix $D$ for $n$ sequences
 
-**Initialization**:
-- Let $n$ be the number of sequences
-- Assign each sequence $i$ to its own leaf node
-- Initialize tree $T$ with leaf nodes
-     empty graph with list of leaves 
+**Initialization**: - Let $n$ be the number of sequences - Assign each sequence $i$ to its own leaf node - Initialize tree $T$ with leaf nodes empty graph with list of leaves
 
-**Iteration**:
-While $n > 2$:
-1. Calculate Q-matrix (centrality of the calculated distances) where:
-   $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
+**Iteration**: While $n > 2$: 1. Calculate Q-matrix (centrality of the calculated distances) where: $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
 
 2.  Find pair $(i,j)$ with minimum $Q(i,j)$
 
 3.  Calculate branch lengths: $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$
 
-4. Create new node $k$ INTERNAL NODE (ancestor)
-   - Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
+4.  Create new node $k$ INTERNAL NODE (ancestor)
+
+    -   Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
 
     -   Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
 
@@ -83,120 +77,81 @@ While $n > 2$:
 
 6.  Remove nodes $i$ and $j$
 
-<End Marcus Stuff>
----
-<Jacque started here>
-## Pseudo Code:
+## <End Marcus Stuff>
 
-I have taken Marcus' above "plan" and started to flesh it out a bit more 
+<Jacque started here> \## Pseudo Code:
+
+I have taken Marcus' above "plan" and started to flesh it out a bit more
 
 Data Structure discussion:
 
 sequences = list of 'n' Dictionaries (name seq) #from fasta file
 
-Dmatrix = n x n numpy array of normalized distances between the sequences.
-D is the Dmatrix (distance matrix) n x n [ixj] where i and j are sequences
-    Calculated from smith-waterman "score" going from one sequence i to sequence j
-Distance from S(i) to S(j) = D(i,j)
-If k is an internal node on our graph:
-  Distance from S(k,j) (aka S(j,k)) = D(i,j) - D(i,k) 
-  
- T:
-    will need n leaves (a node with only one edge to rest of graph)
-    will need internal_nodes a node that has more than 1 edge
-    will need edges associated with all nodes 
-    edges have lengths
-    
-    Tree:
-    class TreeNode
-      name = from sequences[].name 
-      children: List of nodes
-      edges:  list of Edges?
-    
-     class Edge 
-      length: int # this gets recalculated every time.
-    
-    will need methods to create_leaves, merge_nodes, prune 
+Dmatrix = n x n numpy array of normalized distances between the sequences. D is the Dmatrix (distance matrix) n x n \[ixj\] where i and j are sequences Calculated from smith-waterman "score" going from one sequence i to sequence j Distance from S(i) to S(j) = D(i,j) If k is an internal node on our graph: Distance from S(k,j) (aka S(j,k)) = D(i,j) - D(i,k)
 
-  Q is the Qmatrix n x n  numpy array.
-  taking/measuring how central the cluster is; (penalizes outliers)
-    where Q[i,j] = eqn1 (see above)
-  
-Other things to know:
-  # note:  D(k,j) = D(j,k) for all values of j and k; symetry.
-  # also: There will always be a distance from i to j; though they may not be directly connected.
-  # also:  D(k,k) = 0 for all values of k.
-  # also:  nodes will have an idea of 'degrees' as well as to which other nodes they are connected, and which may be good if something is leaf... 
-  # also:  merge nodes -- we will know who the common ancestor is 
-    
+T: will need n leaves (a node with only one edge to rest of graph) will need internal_nodes a node that has more than 1 edge will need edges associated with all nodes edges have lengths
+
+```         
+Tree:
+class TreeNode
+  name = from sequences[].name 
+  children: List of nodes
+  edges:  list of Edges?
+
+ class Edge 
+  length: int # this gets recalculated every time.
+
+will need methods to create_leaves, merge_nodes, prune 
+```
+
+Q is the Qmatrix n x n numpy array. taking/measuring how central the cluster is; (penalizes outliers) where Q\[i,j\] = eqn1 (see above)
+
+Other things to know: \# note: D(k,j) = D(j,k) for all values of j and k; symetry. \# also: There will always be a distance from i to j; though they may not be directly connected. \# also: D(k,k) = 0 for all values of k. \# also: nodes will have an idea of 'degrees' as well as to which other nodes they are connected, and which may be good if something is leaf... \# also: merge nodes -- we will know who the common ancestor is
+
 **Input** (begin pseudo code)
 
-Fasta file has been imported, and returns sequences a list of Dictionarys 
-                with name as key, seq as value
+Fasta file has been imported, and returns sequences a list of Dictionarys with name as key, seq as value
 
-  # note: n = 20 as their are 20 seq in our fasta file. 
-  
-  Next step will be:
+\# note: n = 20 as their are 20 seq in our fasta file.
+
+Next step will be:
 
 Initialize the Distance Matrix:
 
-Micheal has used his Smith-Waterman code as well as creating a normalization process.
-  Dmatrix is created.
-  
+Micheal has used his Smith-Waterman code as well as creating a normalization process. Dmatrix is created.
+
 To decrease the insanity of the next section, I have pulled out the equations....
 
-eqn1 = $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
-eqn2 = Branch_length =  $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$
-   $d_j = d(i,j) - d_i$
-   where $r_i = \sum_{k=1}^n d(i,k)$
-eqn3 = $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
+eqn1 = $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$ eqn2 = Branch_length = $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$ eqn3 = $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
 
 **Input** \## While working with Nikaela (project 4), I implemented a read_fasta that was a hacked up ##version of Marcus's read fasta from project 3. \## \## I will put that file in our project06 directory as my_read_fasta.py \## feel free to mess with it, make it more error tolerant, etc, as I haven't checked ##. for errors on openning or ??? ##.I am adding my_read_fasta.py and the appropriate import
 
-  for t in set from 0 to n
-    T.leaf = create_leaf( S[name] ); tuple from dictionary associated with name
-  
-    
-**Iteration**: 
-q = n (number of sequences)
+for t in set from 0 to n T.leaf = create_leaf( S\[name\] ); tuple from dictionary associated with name
 
-While q > 2:
-1. Calculate Q-matrix where:
-  for i in ... do
-    for j in ... do
-      Q[i,j] = "eqn1" (given S(i) and S(j))
+**Iteration**: q = n (number of sequences)
 
-2. Find pair (i,j) with minimum Q(i,j) -- 
-Note that we need to be aware that the diagonal are 0s and we only need to look 
-at half the array 
-  find S(i) and S(j) that represent the entry in Q
+While q \> 2: 1. Calculate Q-matrix where: for i in ... do for j in ... do Q\[i,j\] = "eqn1" (given S(i) and S(j))
 
-3. Calculate branch lengths:    
-  Now that we have i and j; 
+2.  Find pair (i,j) with minimum Q(i,j) -- Note that we need to be aware that the diagonal are 0s and we only need to look at half the array find S(i) and S(j) that represent the entry in Q
 
-  from "eqn2" given S(i), S(j):
-  
-  calculate ?2? branch lengths ( this is distance from i to j );
+3.  Calculate branch lengths:\
+    Now that we have i and j;
 
-4. Create new node k
-     "Add branches from k to i and j with branch lengths D(i) and D(j)"
+from "eqn2" given S(i), S(j):
 
-5. Update distances to remaining nodes:
-   using eqn3 above, re-calculate Dmatrix????
+calculate ?2? branch lengths ( this is distance from i to j );
 
-6. Remove nodes i and j from active nodes list
-  we have now connected them with node k, and their edges have lengths.
- (should this happen before item 5?) ?remove column i and column j ; row i and row j
+4.  Create new node k "Add branches from k to i and j with branch lengths D(i) and D(j)"
 
-7. Add internal node k to active nodes list
+5.  Update distances to remaining nodes: using eqn3 above, re-calculate Dmatrix????
 
-8. q = q - 1
+6.  Remove nodes i and j from active nodes list we have now connected them with node k, and their edges have lengths. (should this happen before item 5?) ?remove column i and column j ; row i and row j
 
-**Termination**:
-When q = 2 with remaining nodes i and j:     # last node to add
-- Add final branch between i and j with length d(i,j)
-- Return unrooted tree T
-<end area for pseudo code>
+7.  Add internal node k to active nodes list
+
+8.  q = q - 1
+
+**Termination**: When q = 2 with remaining nodes i and j: \# last node to add - Add final branch between i and j with length d(i,j) - Return unrooted tree T <end area for pseudo code>
 
 ## Distance metrics for comparing sequences
 
@@ -206,43 +161,46 @@ This was previously implemented. Feel free to import if you know how...or Copy &
 
 ```{python}
 class Node:
-    def __init__(self, name, left=None, right=None, dist_left=None, dist_right=None):
+    def __init__(self, name):
         self.name = name
-        self.left = left
-        self.right = right
-        self.dist_left = dist_left
-        self.dist_right = dist_right
+        self.edges = []
+    
+    def __repr__(self):
+        edge_info = ", ".join([f"{node.name}:{dist:.4f}" for node, dist in self.edges])
+        return f"Node('{self.name}', edges=[{edge_info}])"
+
+    def add_edge(self, node, distance):
+        self.edges.append((node, distance))
 
     def is_leaf(self):
-        return self.left is None and self.right is None
+        return len(self.edges) == 1
 
-    def to_newick(self):
-        """
-        Convert tree to Newick format:
-          (A:lengthA,B:lengthB,(C:lengthC,D:lengthD):lengthmiddle) 
-        """
-        if self.is_leaf():
-          return f"{self.name}:{self.dist_left if self.dist_left else 0}"
-        
-        left_str = self.left.to_newick()
-        right_str = self.right.to_newick()
-        
-        newick = f"({left_str},{right_str})"
-        if self.dist_left is not None:  # Add branch length from node to its parent
-          newick += f":{self.dist_left}"
-          
-        return newick
+    def to_newick(self, parent=None):
+       if self.is_leaf():
+           dist = next((d for n, d in self.edges if n == parent), 0)
+           return f"{self.name}:{dist}"
+       
+       children = [(node, dist) for node, dist in self.edges if node != parent]
+       child_strings = [node.to_newick(parent=self) for node, dist in children]
+       
+       newick = "(" + ",".join(child_strings) + ")"
+       
+       if parent is not None:
+           parent_dist = next((d for n, d in self.edges if n == parent), 0)
+           newick += f":{parent_dist}"
+       
+       return newick
 ```
 
 ```{python DistanceMatrix}
-def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
+def build_similarity_matrix(sequences: Dict[str, str]) -> np.ndarray:
     """Builds distance matrix using Smith-Waterman scores.
 
     Args:
         sequences (Dict[str, str]): Dictionary of HIV RT sequences
 
     Returns:
-        Tuple[np.ndarray, List[str]]: Distance matrix and list of sequence IDs
+        np.ndarray: Similarity matrix from SW max scores
 
     """
     n_seq = len(sequences)
@@ -254,8 +212,6 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List
             dm [j, i] = dm[i, j]
     return dm
 
-
-def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
 def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
     """Normalize Smith-Waterman scores using a cosine-similarity approach -
     divide scores by the square root of the maximum possible alignment score.
@@ -270,13 +226,9 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
         np.ndarray: Matrix of normalized Smith-Waterman scores based on
         square root of maximum possible score.
     """
-    # broke it down for readibility 
     diag = np.diag(similarity_matrix)
     normalization = np.sqrt(np.outer(diag, diag))
-    return similarity_matrix / normalization  # was originally returning tuple instead of just np.array
-    
-
-def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
+    return similarity_matrix / normalization 
     
 
 def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
@@ -299,8 +251,7 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
         19
     """
     sequence_ids = list(sequences.keys())
-    similarity_matrix = build_similarity_matrix(sequences)[0]
-    
+    similarity_matrix = build_similarity_matrix(sequences)
     normalized_sm = normalize_similarity_matrix(similarity_matrix)
     return (1 - normalized_sm), seq_ids
 ```
@@ -376,8 +327,8 @@ def calculate_k_distances(distance_matrix: np.ndarray, i: int, j: int) -> np.nda
 
     Args:
         distance_matrix (np.ndarray): Distance matrix
-        i (int): _description_
-        j (int): _description_
+        i (int): index corresponding to species i
+        j (int): index corresponding to species j
 
     Returns:
         np.ndarray: np array of size 1xn-1, where n is the # of rows
@@ -429,45 +380,41 @@ def neighbor_joining(
 
     """
     n_taxa = distance_matrix.shape[0]
-    active_nodes = list(range(n_taxa))  # keep track of remaining active nodes 
-    
-    # Initialize nodes
     nodes = [Node(name=label) for label in labels]
-    
-    # keep merging until only 2 nodes remain
-    while len(active_nodes) > 2:  
-      # build q-matrix 
-      q_matrix = build_q_matrix(distance_matrix)
-      min_distance, min_coords = get_min_distance(q_matrix)
-<<<<<<< HEAD
-      i_idx, j_idx = min_coords
-      
-      # get node indices in our nodes
-      i = active_indicies[i_idx]
-      j = active_indicies[j_idx]
-      
-      # calculate branch length of each node
-      L_i, L_j = calculate_branch_length(distance matrix, i_idx, j_idx)
-      
-      # set branch lengths
-      nodes[i].dist_left = L_i
-      nodes[j].dist_left = L_j
-      
-      # create internal node for parents of i and j
-      new_node = Node(
-        name = f"internal_{len(nodes)}",
-        left = nodes[i],
-        right = nodes[j],
-        dist_left = None
-        )
-      nodes.append(new_node)
-      
-      # update distance matrix: remove rows/columns for i/j; add new for merged nodes
-      distance_matrix = update_distance_matrix(distance_matrix, i_idx, j_idx)
+    while n_taxa > 2:
+        q_matrix = build_q_matrix(distance_matrix)
+        min_distance, (i, j) = get_min_distance(q_matrix)
+        L_i, L_j = calculate_branch_lengths(distance_matrix, i, j)
+        k = Node(name=f"node_{len(labels) - n_taxa + 1}")
+        k.add_edge(nodes[i], L_i)
+        k.add_edge(nodes[j], L_j)
+        nodes.pop(max(i, j))
+        nodes.pop(min(i, j))
+        nodes.append(k)
+        distance_matrix = update_distance_matrix(distance_matrix, i, j)
+        n_taxa -= 1
 
-    
+    if len(nodes) == 2:
+        final_distance = distance_matrix[0, 1]
+        nodes[0].add_edge(nodes[1], final_distance)
+
+    root = nodes[0] # this isn't really a 'root' but we need somewhere to start w/ newick
+    newick_string = root.to_newick() + ";"
+    return nodes # change to newick once it works    
 ```
 
+```{python}
+test_sequences = {
+    "seq1": "ATGCTAGCTAG",
+    "seq2": "ATGCGTAGCTA",
+    "seq3": "TTGCTAGTTAG",
+    "seq4": "ATGCCAGCTAC",
+    "seq5": "TTGCGAGCTAA"
+}
+distance_matrix, labels = build_distance_matrix(test_sequences)
+newick = neighbor_joining(distance_matrix, labels)
+print(newick)
+```
 
 ```{python}
 #import dendropy
@@ -508,7 +455,6 @@ def plot_tree(newick_tree: str) -> None:
 
 ```
 
-  
 ```{python}
 if __name__ == "__main__":
     # Read HIV RT sequences
@@ -528,4 +474,3 @@ if __name__ == "__main__":
   #plot_tree(tree)
   
 ```
-
