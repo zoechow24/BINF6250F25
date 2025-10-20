@@ -166,16 +166,20 @@ class Node:
         self.edges = []
     
     def __repr__(self):
+      """Defines how our object is printed out"""
         edge_info = ", ".join([f"{node.name}:{dist:.4f}" for node, dist in self.edges])
         return f"Node('{self.name}', edges=[{edge_info}])"
 
     def add_edge(self, node, distance):
+        """Add an edge to a node in the form of a tuple (node, distance)"""
         self.edges.append((node, distance))
 
     def is_leaf(self):
+        """Node is a leaf if the length of its edges == 1"""
         return len(self.edges) == 1
 
     def to_newick(self, parent=None):
+       """Recursively build our newick string from class implementation"""
        if self.is_leaf():
            dist = next((d for n, d in self.edges if n == parent), 0)
            return f"{self.name}:{dist}"
@@ -205,12 +209,12 @@ def build_similarity_matrix(sequences: Dict[str, str]) -> np.ndarray:
     """
     n_seq = len(sequences)
     seqs = list(sequences.values())
-    dm = np.zeros((n_seq, n_seq))
+    sm = np.zeros((n_seq, n_seq))
     for i in range(n_seq):
         for j in range(i, n_seq):
-            dm[i, j] = smith_waterman_max_score(seqs[i], seqs[j])
-            dm [j, i] = dm[i, j]
-    return dm
+            sm[i, j] = smith_waterman_max_score(seqs[i], seqs[j])
+            sm [j, i] = sm[i, j]
+    return sm
 
 def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
     """Normalize Smith-Waterman scores using a cosine-similarity approach -
@@ -272,7 +276,7 @@ def build_q_matrix(distance_matrix: np.ndarray) -> np.ndarray:
     # np.sum returns a vector of shape (n_taxa,)
     # to broadcast, we need to reshape to (1, n) and (n, 1)
     qm = (n_taxa - 2) * distance_matrix - r_i[:, None] - r_i[None, :]
-    np.fill_diagonal(qm, np.inf) # diagonal is meaningless algorithmically
+    np.fill_diagonal(qm, np.inf) # diagonal is meaningless algorithmically -- we can fill with inf for our later min_distance
     return qm
 ```
 
@@ -388,7 +392,7 @@ def neighbor_joining(
         k = Node(name=f"node_{len(labels) - n_taxa + 1}")
         k.add_edge(nodes[i], L_i)
         k.add_edge(nodes[j], L_j)
-        nodes.pop(max(i, j))
+        nodes.pop(max(i, j))  # we pop max first to avoid index shifting issues
         nodes.pop(min(i, j))
         nodes.append(k)
         distance_matrix = update_distance_matrix(distance_matrix, i, j)
@@ -397,10 +401,11 @@ def neighbor_joining(
     if len(nodes) == 2:
         final_distance = distance_matrix[0, 1]
         nodes[0].add_edge(nodes[1], final_distance)
+        nodes[1].add_edge(nodes[0], final_distance)
 
     root = nodes[0] # this isn't really a 'root' but we need somewhere to start w/ newick
     newick_string = root.to_newick() + ";"
-    return nodes # change to newick once it works    
+    return newick_string   
 ```
 
 ```{python}
