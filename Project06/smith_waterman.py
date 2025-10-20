@@ -247,15 +247,17 @@ def calculate_p_distance(seq1: str, seq2: str) -> float:
     return mismatches / total if total else 0.0
 
 
-def jukes_cantor(p_dist: float) -> float:
-    """Corrects p-distances based on Jukes-Cantor evolutionary model.
+def jukes_cantor(aligned_seq1: str, aligned_seq2: str) -> float:
+    """Corrects p-distances of two sequences based on Jukes-Cantor evolutionary model.
 
     Args:
-        p_dist (float): p-distance between two sequences
+        aligned_seq1 (str): Aligned sequence 1
+        aligned_seq2 (str): Aligned sequence 2
 
     Returns:
         float: Corrected p-distances based on JC
     """
+    p_dist = calculate_p_distance(aligned_seq1, aligned_seq2)
     if p_dist >= 0.75:
         return float('inf')
     return (-3/4) * math.log(1 - (4 * p_dist / 3))
@@ -309,4 +311,3 @@ def kimura_two_parameter(aligned_seq1: str, aligned_seq2: str) -> float:
         return float('inf')
     return -0.5 * math.log(1 - 2*P - Q) - 0.25 * math.log(1 - 2*Q)
 
-    
