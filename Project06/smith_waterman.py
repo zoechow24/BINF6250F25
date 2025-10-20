@@ -6,7 +6,7 @@ the maximum score of a Smith-Waterman alignment
 from enum import Enum
 from itertools import filterfalse
 import math
-from typing import Tuple
+from typing import Tuple, Dict, Callable
 import numpy as np
 
 class Direction(Enum):
@@ -14,6 +14,14 @@ class Direction(Enum):
     DIAG = 1
     UP = 2
     LEFT = 3
+
+DISTANCE_FUNCTIONS: Dict[str, Callable[[str, str], float]] = {
+    "p": calculate_p_distance,
+    "jc": jukes_cantor,
+    "jukes_cantor": jukes_cantor,
+    "k2p": kimura_two_parameter,
+    "kimura": kimura_two_parameter,
+}
 
 
 def cal_score(

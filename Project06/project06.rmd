@@ -40,7 +40,7 @@ You will need to install a package called `ete3` for this project. You can do th
 from typing import List, Tuple, Dict
 import numpy as np
 from my_read_fasta import read_fasta
-from smith_waterman import smith_waterman_max_score
+from smith_waterman import smith_waterman, smith_waterman_max_score, kimura_two_parameter, jukes_cantor, calculate_p_distance, DISTANCE_FUNCTIONS
 ```
 
 ------------------------------------------------------------------------
@@ -235,7 +235,7 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
     return similarity_matrix / normalization 
     
 
-def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[str]]:
+def build_distance_matrix(sequences: Dict[str, str], metric="cosine") -> Tuple[np.ndarray, List[str]]:
     """Builds distance matrix using Smith-Waterman scores.
 
     Args:
@@ -254,8 +254,12 @@ def build_distance_matrix(sequences: Dict[str, str]) -> Tuple[np.ndarray, List[s
         >>> len(ids)  # Number of sequences
         19
     """
+    metric = metric.lower()
+    if metric not in DISTANCE_FUNCTIONS:
+      raise ValueError(f"Unsupported metric: {metric}. Choose from one of {DISTANCE_FUNCTIONS.values()}")
     sequence_ids = list(sequences.keys())
     similarity_matrix = build_similarity_matrix(sequences)
+    
     normalized_sm = normalize_similarity_matrix(similarity_matrix)
     return (1 - normalized_sm), seq_ids
 ```
