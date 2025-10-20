@@ -15,13 +15,6 @@ class Direction(Enum):
     UP = 2
     LEFT = 3
 
-DISTANCE_FUNCTIONS: Dict[str, Callable[[str, str], float]] = {
-    "p": calculate_p_distance,
-    "jc": jukes_cantor,
-    "jukes_cantor": jukes_cantor,
-    "k2p": kimura_two_parameter,
-    "kimura": kimura_two_parameter,
-}
 
 
 def cal_score(
@@ -319,3 +312,11 @@ def kimura_two_parameter(aligned_seq1: str, aligned_seq2: str) -> float:
         return float('inf')
     return -0.5 * math.log(1 - 2*P - Q) - 0.25 * math.log(1 - 2*Q)
 
+
+DISTANCE_FUNCTIONS: Dict[str, Callable[[str, str], float]] = {
+    "p": calculate_p_distance,
+    "jc": jukes_cantor,
+    "jukes_cantor": jukes_cantor,
+    "k2p": kimura_two_parameter,
+    "kimura": kimura_two_parameter,
+}

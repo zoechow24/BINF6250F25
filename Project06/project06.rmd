@@ -255,13 +255,29 @@ def build_distance_matrix(sequences: Dict[str, str], metric="cosine") -> Tuple[n
         19
     """
     metric = metric.lower()
+    n_seq = len(sequences)
+    sequence_ids = list(sequences.keys())
+
     if metric not in DISTANCE_FUNCTIONS:
       raise ValueError(f"Unsupported metric: {metric}. Choose from one of {DISTANCE_FUNCTIONS.values()}")
-    sequence_ids = list(sequences.keys())
-    similarity_matrix = build_similarity_matrix(sequences)
+
+    if metric == "cosine":
+        similarity_matrix = build_similarity_matrix(sequences)
+        normalized_sm = normalize_similarity_matrix(similarity_matrix)
+        return (1 - normalized_sm), sequence_ids
     
-    normalized_sm = normalize_similarity_matrix(similarity_matrix)
-    return (1 - normalized_sm), seq_ids
+    distance_func = DISTANCE_FUNCTIONS[metric]
+    distance_matrix = np.zeros((n_seq, n_seq))
+    seqs_list = list(sequences.values())
+
+    for i in range(n_seq):
+        for j in range(i+1, n_seq):
+            aligned_i, aligned_j, _ = smith_waterman(seqs_list[i], seqs_list[j])
+            dist = distance_func(aligned_i, aligned_j)
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist
+            
+    return distance_matrix, sequence_ids
 ```
 
 ```{python q_matrix}
