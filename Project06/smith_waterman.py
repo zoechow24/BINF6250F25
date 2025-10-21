@@ -5,9 +5,18 @@ the maximum score of a Smith-Waterman alignment
 """
 from enum import Enum
 from itertools import filterfalse
+from functools import lru_cache
 import math
 from typing import Tuple, Dict, Callable
+import warnings
 import numpy as np
+
+try:
+    import pandas as pd
+    _HAS_PANDAS = True
+except ImportError:
+    _HAS_PANDAS = False
+    
 
 class Direction(Enum):
     END = 0
@@ -305,10 +314,51 @@ def kimura_two_parameter(aligned_seq1: str, aligned_seq2: str) -> float:
     return round(dist, 6)
 
 
+@lru_cache(maxsize=1)
+def load_blosum(blosum_f: str = "BLOSUM62") -> pd.DataFrame:
+    return pd.read_csv(blosum_f, sep=r"\s+", index_col=0, header=0)
+
+
+def blosum_dist(aligned_seq1: str = None, aligned_seq2: str = None) -> float:
+    """Calculate normalized distances from a BLOSUM62 matrix between two aligned sequences.
+
+    Args:
+        aligned_seq1 (str, optional): First aligned sequence. Defaults to None.
+        aligned_seq2 (str, optional): Second aligned sequence. Defaults to None.
+
+    Returns:
+        float: Score based on BLOSUM62 matrix, normalized by the maximum score of aligned_seq1 to itself
+    """
+    if not _HAS_PANDAS:
+        warnings.warn("Pandas not found -- BLOSUM distances will be skipped.")
+        return float("nan")
+    blosum_df = load_blosum() # cached
+    # to vectorize, we can use .to_numpy() 
+    blosum_matrix = blosum_df.to_numpy()
+    residues = blosum_df.index.tolist()
+    res_to_idx = {res: i for i, res in enumerate(residues)}
+
+    # ignore pairs which have a gap on either seq
+    pairs = [(res_to_idx[r1], res_to_idx[r2]) 
+            for r1, r2 in zip(aligned_seq1, aligned_seq2) 
+            if '-' not in (r1, r2)]
+
+    if not pairs:
+        return 1.0
+
+    # transpose -- pairs will give a column vector and we need rows
+    idx1, idx2 = np.array(pairs).T
+    # below is where the actual speed gains from vectorized lookups come up
+    scores = blosum_matrix[idx1, idx2]
+    max_scores = blosum_matrix[idx1, idx1]
+
+    return round(1 - (scores.sum() / max_scores.sum()), 6)
+
 DISTANCE_FUNCTIONS: Dict[str, Callable[[str, str], float]] = {
     "p": calculate_p_distance,
     "jc": jukes_cantor,
     "jukes_cantor": jukes_cantor,
     "k2p": kimura_two_parameter,
     "kimura": kimura_two_parameter,
+    "blosum": blosum_dist,
 }
