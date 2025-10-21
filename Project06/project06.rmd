@@ -9,191 +9,67 @@ output:
     toc_depth: 2
 ---
 
+## Setup
+
 ```{r setup, include=FALSE}
-
-
-
 knitr::opts_chunk$set(echo=TRUE)
 library('reticulate')
 reticulate::conda_install(envname = "r-reticulate",
-                        packages=c("dendropy", "biopython",
-                                   "matplotlib"),
+                        packages=c("biopython", "matplotlib"),
                         channel=c("bioconda", "conda-forge"), 
                         conda="auto")
 ```
 
-------------------------------------------------------------------------
-
-## Learning Objectives
-
-1.  Implement a distance-based phylogeny neighbor joining algorithm
-2.  Understanding of hierarchical clustering
-3.  Manipulation of arrays and lists in Python
-
-------------------------------------------------------------------------
-
 ## Imports
-
-You will need to install a package called `ete3` for this project. You can do this by the command `conda install ete3`.
 
 ```{python}
 from typing import List, Tuple, Dict
 import numpy as np
+from Bio import Phylo
+import matplotlib.pyplot as plt
+import io
 from my_read_fasta import read_fasta
 from smith_waterman import smith_waterman, smith_waterman_max_score, kimura_two_parameter, jukes_cantor, calculate_p_distance, DISTANCE_FUNCTIONS
 ```
 
-------------------------------------------------------------------------
-
-## Background
-
-Today we will implement a distance-based phylogenetic tree construction method using the Neighbor-Joining (NJ) algorithm and Smith-Waterman local alignment scores. Unlike UPGMA (Unweighted Pair Group Method using Arithmetic averages), NJ produces unrooted trees and does not assume a constant evolutionary rate across lineages, making it more biologically realistic for analyzing sequence relationships.
-
-We will use HIV-1 reverse transcriptase sequences to construct our phylogenetic tree. The Smith-Waterman algorithm will be used to generate pairwise local alignment scores, which will then be converted into distances for tree construction. This approach is particularly suitable for HIV sequence analysis as it: 1. Handles sequence variations effectively through local alignment 2. Accounts for potential rate heterogeneity across different viral strains 3. Does not assume a molecular clock
-
-The ultimate output will be an unrooted phylogenetic tree representing the evolutionary relationships between the HIV-1 sequences, visualized using the ete3 library. This method provides insights into viral diversity and evolutionary patterns while avoiding the assumptions of simpler hierarchical clustering approaches.
-
-The key innovations of this implementation are: - Use of Smith-Waterman for sensitive local alignment scoring - Implementation of Neighbor-Joining for unrooted tree construction - More biologically realistic evolutionary model
-
-## Neighbor-Joining Algorithm
-
-**Input**: Distance matrix $D$ for $n$ sequences
-
-**Initialization**: - Let $n$ be the number of sequences - Assign each sequence $i$ to its own leaf node - Initialize tree $T$ with leaf nodes empty graph with list of leaves
-
-**Iteration**: While $n > 2$: 1. Calculate Q-matrix (centrality of the calculated distances) where: $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$
-
-2.  Find pair $(i,j)$ with minimum $Q(i,j)$
-
-3.  Calculate branch lengths: $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$
-
-4.  Create new node $k$ INTERNAL NODE (ancestor)
-
-    -   Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
-
-    -   Add branches from $k$ to $i$ and $j$ with lengths $d_i$ and $d_j$
-
-5.  Update distances to remaining nodes $x$: $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
-
-6.  Remove nodes $i$ and $j$
-
-## <End Marcus Stuff>
-
-<Jacque started here> \## Pseudo Code:
-
-I have taken Marcus' above "plan" and started to flesh it out a bit more
-
-Data Structure discussion:
-
-sequences = list of 'n' Dictionaries (name seq) #from fasta file
-
-Dmatrix = n x n numpy array of normalized distances between the sequences. D is the Dmatrix (distance matrix) n x n \[ixj\] where i and j are sequences Calculated from smith-waterman "score" going from one sequence i to sequence j Distance from S(i) to S(j) = D(i,j) If k is an internal node on our graph: Distance from S(k,j) (aka S(j,k)) = D(i,j) - D(i,k)
-
-T: will need n leaves (a node with only one edge to rest of graph) will need internal_nodes a node that has more than 1 edge will need edges associated with all nodes edges have lengths
-
-```         
-Tree:
-class TreeNode
-  name = from sequences[].name 
-  children: List of nodes
-  edges:  list of Edges?
-
- class Edge 
-  length: int # this gets recalculated every time.
-
-will need methods to create_leaves, merge_nodes, prune 
-```
-
-Q is the Qmatrix n x n numpy array. taking/measuring how central the cluster is; (penalizes outliers) where Q\[i,j\] = eqn1 (see above)
-
-Other things to know: \# note: D(k,j) = D(j,k) for all values of j and k; symetry. \# also: There will always be a distance from i to j; though they may not be directly connected. \# also: D(k,k) = 0 for all values of k. \# also: nodes will have an idea of 'degrees' as well as to which other nodes they are connected, and which may be good if something is leaf... \# also: merge nodes -- we will know who the common ancestor is
-
-**Input** (begin pseudo code)
-
-Fasta file has been imported, and returns sequences a list of Dictionarys with name as key, seq as value
-
-\# note: n = 20 as their are 20 seq in our fasta file.
-
-Next step will be:
-
-Initialize the Distance Matrix:
-
-Micheal has used his Smith-Waterman code as well as creating a normalization process. Dmatrix is created.
-
-To decrease the insanity of the next section, I have pulled out the equations....
-
-eqn1 = $Q(i,j) = (n-2)d(i,j) - \sum_{k=1}^n d(i,k) - \sum_{k=1}^n d(j,k)$ eqn2 = Branch_length = $d_i = \frac{d(i,j) + (r_i - r_j)/(n-2)}{2}$ $d_j = d(i,j) - d_i$ where $r_i = \sum_{k=1}^n d(i,k)$ eqn3 = $d(k,x) = \frac{d(i,x) + d(j,x) - d(i,j)}{2}$
-
-**Input** \## While working with Nikaela (project 4), I implemented a read_fasta that was a hacked up ##version of Marcus's read fasta from project 3. \## \## I will put that file in our project06 directory as my_read_fasta.py \## feel free to mess with it, make it more error tolerant, etc, as I haven't checked ##. for errors on openning or ??? ##.I am adding my_read_fasta.py and the appropriate import
-
-for t in set from 0 to n T.leaf = create_leaf( S\[name\] ); tuple from dictionary associated with name
-
-**Iteration**: q = n (number of sequences)
-
-While q \> 2: 1. Calculate Q-matrix where: for i in ... do for j in ... do Q\[i,j\] = "eqn1" (given S(i) and S(j))
-
-2.  Find pair (i,j) with minimum Q(i,j) -- Note that we need to be aware that the diagonal are 0s and we only need to look at half the array find S(i) and S(j) that represent the entry in Q
-
-3.  Calculate branch lengths:\
-    Now that we have i and j;
-
-from "eqn2" given S(i), S(j):
-
-calculate ?2? branch lengths ( this is distance from i to j );
-
-4.  Create new node k "Add branches from k to i and j with branch lengths D(i) and D(j)"
-
-5.  Update distances to remaining nodes: using eqn3 above, re-calculate Dmatrix????
-
-6.  Remove nodes i and j from active nodes list we have now connected them with node k, and their edges have lengths. (should this happen before item 5?) ?remove column i and column j ; row i and row j
-
-7.  Add internal node k to active nodes list
-
-8.  q = q - 1
-
-**Termination**: When q = 2 with remaining nodes i and j: \# last node to add - Add final branch between i and j with length d(i,j) - Return unrooted tree T <end area for pseudo code>
-
-## Distance metrics for comparing sequences
-
-### Smith-Waterman
-
-This was previously implemented. Feel free to import if you know how...or Copy & Paste.
+## Class definition
 
 ```{python}
 class Node:
-    def __init__(self, name):
-        self.name = name
-        self.edges = []
+  def __init__(self, name):
+    self.name = name
+    self.edges = []
     
-    def __repr__(self):
-      """Defines how our object is printed out"""
-        edge_info = ", ".join([f"{node.name}:{dist:.4f}" for node, dist in self.edges])
-        return f"Node('{self.name}', edges=[{edge_info}])"
+  def __repr__(self):
+    """Defines how our object is printed out"""
+    edge_info = ", ".join([f"{node.name}:{dist:.4f}" for node, dist in self.edges])
+    return f"Node('{self.name}', edges=[{edge_info}])"
 
-    def add_edge(self, node, distance):
-        """Add an edge to a node in the form of a tuple (node, distance)"""
-        self.edges.append((node, distance))
+  def add_edge(self, node, distance):
+    """Add an edge to a node in the form of a tuple (node, distance)"""
+    self.edges.append((node, distance))
+    node.edges.append((self, distance))
 
-    def is_leaf(self):
-        """Node is a leaf if the length of its edges == 1"""
-        return len(self.edges) == 1
+  def is_leaf(self):
+    """Node is a leaf if the length of its edges == 1"""
+    return len(self.edges) == 1
 
-    def to_newick(self, parent=None):
-       """Recursively build our newick string from class implementation"""
-       if self.is_leaf():
-           dist = next((d for n, d in self.edges if n == parent), 0)
-           return f"{self.name}:{dist}"
+  def to_newick(self, parent=None):
+    """Recursively build our newick string from class implementation"""
+    if self.is_leaf():
+      dist = next((d for n, d in self.edges if n == parent), 0)
+      return f"{self.name}:{dist:.4f}"
        
-       children = [(node, dist) for node, dist in self.edges if node != parent]
-       child_strings = [node.to_newick(parent=self) for node, dist in children]
+    children = [(node, dist) for node, dist in self.edges if node != parent]
+    child_strings = [node.to_newick(parent=self) for node, dist in children]
        
-       newick = "(" + ",".join(child_strings) + ")"
+    newick = "(" + ",".join(child_strings) + ")"
        
-       if parent is not None:
-           parent_dist = next((d for n, d in self.edges if n == parent), 0)
-           newick += f":{parent_dist}"
+    if parent is not None:
+      parent_dist = next((d for n, d in self.edges if n == parent), 0)
+      newick += f":{parent_dist:.4f}"
        
-       return newick
+    return newick
 ```
 
 ```{python DistanceMatrix}
@@ -236,46 +112,33 @@ def normalize_similarity_matrix(similarity_matrix: np.ndarray) -> np.ndarray:
     
 
 def build_distance_matrix(sequences: Dict[str, str], metric="cosine") -> Tuple[np.ndarray, List[str]]:
-    """Builds distance matrix using Smith-Waterman scores.
+  """Builds distance matrix using Smith-Waterman scores.
 
     Args:
         sequences (Dict[str, str]): Dictionary of HIV RT sequences
 
     Returns:
         Tuple[np.ndarray, List[str]]: Distance matrix and list of sequence IDs
+  """
+  metric = metric.lower()
+  n_seq = len(sequences)
+  sequence_ids = list(sequences.keys())
 
-    Examples:
-        >>> seqs = read_fasta("lafayette_SARS_RT.fasta")
-        >>> mat, ids = build_distance_matrix(seqs)
-        >>> mat[0:3, 0:3]  # Show 3x3 slice of distance matrix
-        array([[0.000, 0.004, 0.012],
-              [0.004, 0.000, 0.012],
-              [0.012, 0.012, 0.000]])
-        >>> len(ids)  # Number of sequences
-        19
-    """
-    metric = metric.lower()
-    n_seq = len(sequences)
-    sequence_ids = list(sequences.keys())
-
-    if metric not in DISTANCE_FUNCTIONS:
-      raise ValueError(f"Unsupported metric: {metric}. Choose from one of {DISTANCE_FUNCTIONS.values()}")
-
-    if metric == "cosine":
-        similarity_matrix = build_similarity_matrix(sequences)
-        normalized_sm = normalize_similarity_matrix(similarity_matrix)
-        return (1 - normalized_sm), sequence_ids
+  if metric == "cosine":
+    similarity_matrix = build_similarity_matrix(sequences)
+    normalized_sm = normalize_similarity_matrix(similarity_matrix)
+    return (1 - normalized_sm), sequence_ids
     
-    distance_func = DISTANCE_FUNCTIONS[metric]
-    distance_matrix = np.zeros((n_seq, n_seq))
-    seqs_list = list(sequences.values())
+  distance_func = DISTANCE_FUNCTIONS[metric]
+  distance_matrix = np.zeros((n_seq, n_seq))
+  seqs_list = list(sequences.values())
 
-    for i in range(n_seq):
-        for j in range(i+1, n_seq):
-            aligned_i, aligned_j, _ = smith_waterman(seqs_list[i], seqs_list[j])
-            dist = distance_func(aligned_i, aligned_j)
-            distance_matrix[i, j] = dist
-            distance_matrix[j, i] = dist
+  for i in range(n_seq):
+    for j in range(i+1, n_seq):
+      aligned_i, aligned_j, _ = smith_waterman(seqs_list[i], seqs_list[j])
+      dist = distance_func(aligned_i, aligned_j)
+      distance_matrix[i, j] = dist
+      distance_matrix[j, i] = dist
             
     return distance_matrix, sequence_ids
 ```
@@ -384,90 +247,46 @@ def update_distance_matrix(distance_matrix: np.ndarray, i: int, j: int) -> np.nd
     # since our temporary array is n+1, we can append 0, which is the diagonal.
     # hstack needs a reshaped array, else it interprets (n+1,) as (1,n+1).
     # below we reshape to a proper column vector so we can stack it
-    distance_matrix = np.hstack((distance_matrix, np.append(new_distances, 0)[:, None]))
+    distance_matrix = np.hstack((distance_matrix, 
+                                 np.append(new_distances, 0)[:, None]))
     return distance_matrix
 ```
 
 ```{python}
-def neighbor_joining(
-    distance_matrix: np.ndarray,
-    labels: List[str]
-) -> str:
-    """Implements Neighbor-Joining algorithm for phylogenetic tree construction.
+def neighbor_joining(distance_matrix: np.ndarray, labels: List[str]):
 
-    Args:
-        distance_matrix (np.ndarray): Distance matrix from Smith-Waterman scores
-        labels (List[str]): Sequence identifiers
+  n_taxa = distance_matrix.shape[0]
+  nodes = [Node(name=label) for label in labels]
+  while n_taxa > 2:
+    q_matrix = build_q_matrix(distance_matrix)
+    min_distance, (i, j) = get_min_distance(q_matrix)
+    L_i, L_j = calculate_branch_lengths(distance_matrix, i, j)
+    k = Node(name=f"node_{len(labels) - n_taxa + 1}")
+    k.add_edge(nodes[i], L_i)
+    k.add_edge(nodes[j], L_j)
+    nodes.pop(max(i, j))  # we pop max first to avoid index shifting issues
+    nodes.pop(min(i, j))
+    nodes.append(k)
+    distance_matrix = update_distance_matrix(distance_matrix, i, j)
+    n_taxa -= 1
 
-    Returns:
-        str: Newick format tree string
+  if len(nodes) == 2:
+    final_distance = distance_matrix[0, 1]
+    nodes[0].add_edge(nodes[1], final_distance)
+    
+  root = nodes[0] # this isn't really a 'root' but we need somewhere to start w/ newick
+  newick_string = root.to_newick() + ";"
+  return newick_string   
 
-    """
-    n_taxa = distance_matrix.shape[0]
-    nodes = [Node(name=label) for label in labels]
-    while n_taxa > 2:
-        q_matrix = build_q_matrix(distance_matrix)
-        min_distance, (i, j) = get_min_distance(q_matrix)
-        L_i, L_j = calculate_branch_lengths(distance_matrix, i, j)
-        k = Node(name=f"node_{len(labels) - n_taxa + 1}")
-        k.add_edge(nodes[i], L_i)
-        k.add_edge(nodes[j], L_j)
-        nodes.pop(max(i, j))  # we pop max first to avoid index shifting issues
-        nodes.pop(min(i, j))
-        nodes.append(k)
-        distance_matrix = update_distance_matrix(distance_matrix, i, j)
-        n_taxa -= 1
-
-    if len(nodes) == 2:
-        final_distance = distance_matrix[0, 1]
-        nodes[0].add_edge(nodes[1], final_distance)
-        nodes[1].add_edge(nodes[0], final_distance)
-
-    root = nodes[0] # this isn't really a 'root' but we need somewhere to start w/ newick
-    newick_string = root.to_newick() + ";"
-    return newick_string   
 ```
 
 ```{python}
-test_sequences = {
-    "seq1": "ATGCTAGCTAG",
-    "seq2": "ATGCGTAGCTA",
-    "seq3": "TTGCTAGTTAG",
-    "seq4": "ATGCCAGCTAC",
-    "seq5": "TTGCGAGCTAA"
-}
-distance_matrix, labels = build_distance_matrix(test_sequences)
-newick = neighbor_joining(distance_matrix, labels)
-print(newick)
-```
-
-```{python}
-#import dendropy
-from Bio import Phylo
-import matplotlib.pyplot as plt
-import io
-
 # From a file
 def plot_tree(newick_tree: str) -> None:
-  '''Plots phylogenetic tree using Dendropy
-  
-  Args:
-      newick_tree(str):  Tree in Newick format
-  '''
-# From a string
-#  tree = dendropy.Tree.get(data=newick_tree, schema="newick")
-#  tree.print_plot()
-
-  # Other Newick string examples
-  # newick_string = "((A:1.0,B:1.0):0.5,C:2.0);"
-  # newick_string = "((A:1,B:1):1,C:2);"
-  
-# Create a sample Newick tree string or read from a file
-# Example Newick string:
-  newick_string = "(((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6):0.7,(E:0.8,F:0.9,G:1.0):1.1);"
-
 # Parse the Newick string
-  tree = Phylo.read(io.StringIO(newick_string), "newick") # Using io.StringIO for string input
+  print(f"in plot_tree() {newick_tree}")
+  
+  tree = Phylo.read(io.StringIO(newick_tree),"newick") # Using io.StringIO for string input
 
 # Display the tree as ASCII art
   Phylo.draw_ascii(tree)
@@ -481,21 +300,19 @@ def plot_tree(newick_tree: str) -> None:
 ```
 
 ```{python}
+import numpy as np
+
 if __name__ == "__main__":
     # Read HIV RT sequences
   sequences = read_fasta("lafayette_SARS_RT.fasta")
- 
-  seq_ids=[]
-  for seq in sequences: 
-      seq_ids+=seq
   
   # Build distance matrix using Smith-Waterman
-  dist_matrix = build_distance_matrix(sequences)
+  dist_matrix, seq_ids = build_distance_matrix(sequences)
   
   # Generate unrooted tree using Neighbor-Joining
   tree = neighbor_joining(dist_matrix, seq_ids)
   
-  # Plot tree
-  #plot_tree(tree)
+  print(tree)
+  # plot_tree(tree)
   
 ```
