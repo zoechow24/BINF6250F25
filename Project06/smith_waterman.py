@@ -8,8 +8,15 @@ from itertools import filterfalse
 from functools import lru_cache
 import math
 from typing import Tuple, Dict, Callable
+import warnings
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+    _HAS_PANDAS = True
+except ImportError:
+    _HAS_PANDAS = False
+    
 
 class Direction(Enum):
     END = 0
@@ -322,6 +329,9 @@ def blosum_dist(aligned_seq1: str = None, aligned_seq2: str = None) -> float:
     Returns:
         float: Score based on BLOSUM62 matrix, normalized by the maximum score of aligned_seq1 to itself
     """
+    if not _HAS_PANDAS:
+        warnings.warn("Pandas not found -- BLOSUM distances will be skipped.")
+        return float("nan")
     blosum_df = load_blosum() # cached
     # to vectorize, we can use .to_numpy() 
     blosum_matrix = blosum_df.to_numpy()
