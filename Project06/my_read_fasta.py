@@ -20,8 +20,6 @@ def get_name_from_string(descriptor:str) -> str:
     length = len(list_of_str)
     if length == 0:
         return("")
-    if length == 1:
-        return(list_of_str[0])
     return (list_of_str[length-1])
 
 def get_fasta(fasta_file):
