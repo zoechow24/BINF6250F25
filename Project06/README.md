@@ -1,12 +1,18 @@
 # BINF6250 - Project 06
 
+## Zoe Chow, Michael Bambha, Jacque Caldwell
+
 # Introduction
 
-Description of the project
+We implemented a distance-based phylogenetic tree construction method using the Neighbor-Joining (NJ) algorithm and Smith-Waterman local alignment scores. Unlike UPGMA (Unweighted Pair Group Method using Arithmetic averages), NJ produces unrooted trees and does not assume a constant evolutionary rate across lineages, making it more biologically realistic for analyzing sequence relationships.
+
+We will use HIV-1 reverse transcriptase sequences to construct our phylogenetic tree. The Smith-Waterman algorithm will be used to generate pairwise local alignment scores, which will then be converted into distances for tree construction. This approach is particularly suitable for HIV sequence analysis as it: 1. Handles sequence variations effectively through local alignment 2. Accounts for potential rate heterogeneity across different viral strains 3. Does not assume a molecular clock
+
+The ultimate output will be an unrooted phylogenetic tree representing the evolutionary relationships between the HIV-1 sequences, visualized using the ete3 library. This method provides insights into viral diversity and evolutionary patterns while avoiding the assumptions of simpler hierarchical clustering approaches.
+
+The key innovations of this implementation are: - Use of Smith-Waterman for sensitive local alignment scoring - Implementation of Neighbor-Joining for unrooted tree construction - More biologically realistic evolutionary model
 
 # Pseudocode
-
-Put pseudocode in this box:
 
 ```         
 For building the distance matrix:
@@ -72,6 +78,8 @@ find d_ij and apply the formula.
 
 Huge dive into `numpy` methods, and we were able to find efficient ways to manipulate our matrices using linear algebra / `numpy` instead of using `for` loops. Successfully able to create our tree and implement NJ.
 
+Small dive into ete3 and why it doesn't work with current versions of python, and many other options available (and some not so available) for visualizing Newick trees.
+
 # Struggles
 
 Description of the stumbling blocks the team experienced
@@ -89,6 +97,10 @@ Group leader's reflection on the project
 This was pretty tough. Honestly, a large portion of this was simply just linear algebra and I actually think I learned quite a bit about some matrix operations and ways to implement them in Python. One of them being the self-score calculation trick using `np.outer(np.diag, np.diag)` which I thought was really cool. The hardest part was definitely the OOP and the branch lengths for me - while figuring out how to efficiently implement the formulas in some of the steps was somewhat time-consuming, it wasn't necessarily conceptually difficult or confusing. That part was kind of plug-and-chug, and then optimize. But figuring out how to properly implement our `Node` class was tough, and then figuring out how to actually use this class once we made it to map our branch lengths to our new nodes and update the node list as we continued through the algorithm was conceptually more complicated. The recursion for the Newick strings was also pretty time consuming as well.
 
 Overall, it felt like most of the individual steps of the algorithm were actually pretty easy, but actually putting them together was much harder.
+
+## Jacque
+
+I was away for a large chunk of time during this project, I did spend a bunch of time early on to understand the algorithm, and feel that I have a pretty good handle on what it is doing.  A lot of unexpected things came up during this that were difficult to forsee during the pseudocoding part of this project.  In particular planning the data structure that was needed for the tree, and planning how that was going to be used was much harder up front, but made itself clearer as the project continued.  I did struggle a bit to try to get ete3 going, but the fact that the CGI libraries that it depends on are no longer part of the base python code made it much harder to get going.  While we did have some early success working with biopython and matplotlib, they stopped working for us towards the time for wrapping up this project, so I used the Newick string that we generated to create a tree on the on-line Ete3 web site.  Asynchronous programming continues to be difficult, especially when using a single file for programming between three people in three different time zones.  Rstudio also continues to make moving between github and Explorer difficult at times, with many errors popping up just because spaces changed to tabs or vice versa when moving files between filesystems.  
 
 # Generative AI Appendix
 
