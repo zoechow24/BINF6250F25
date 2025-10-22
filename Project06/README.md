@@ -82,13 +82,13 @@ Small dive into ete3 and why it doesn't work with current versions of python, an
 
 # Struggles
 
-Description of the stumbling blocks the team experienced
+We struggled with transforming our results to the newick format to properly display the tree. 
 
 # Personal Reflections
 
-## Group Leader
+## Group Leader - Zoe
 
-Group leader's reflection on the project
+This project was conceptually a bit difficult for me to fully break down. While I understood the earlier steps of neighbor joining and the calculations behind them, I found it difficult to put it all together to create an unrooted tree. While I understood the pseudocode for this project, putting it in code was more complex than I thought. Furthermore, I struggled with using a lot of the libraries needed for this project, so I had to do a lot of troubleshooting for some programs to work. Lastly, my group were all in different time zones, therefore, it was a bit difficult to schedule in person meetings and coding sessions with everyone. This was the first time I did a project mainly asynchronously, so I definitely struggled with feeling helpful to the project. 
 
 ## Other member
 
